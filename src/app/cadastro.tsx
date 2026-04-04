@@ -6,10 +6,11 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
+  View,
 } from 'react-native';
-import Colors from '../constants/Colors';
-import Typography from '../constants/Typography';
+import CustomInput from '../components/CustomInput';
+import PrimaryButton from '../components/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
 /**
  * Tela 3 – Cadastro
@@ -33,45 +34,45 @@ export default function CadastroScreen() {
     >
       <Text style={styles.titulo}>Criar Conta</Text>
 
-      <TextInput
-        style={styles.input}
+      <View style={styles.formContainer}>
+        <CustomInput
         placeholder="Nome completo"
-        placeholderTextColor={Colors.cinzaMedio}
         value={nome}
         onChangeText={setNome}
       />
 
-      <TextInput
-        style={styles.input}
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
         placeholder="E-mail"
-        placeholderTextColor={Colors.cinzaMedio}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
       />
 
-      <TextInput
-        style={styles.input}
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
         placeholder="Senha"
-        placeholderTextColor={Colors.cinzaMedio}
         secureTextEntry
         value={senha}
         onChangeText={setSenha}
       />
 
-      <TextInput
-        style={styles.input}
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
         placeholder="Confirmar senha"
-        placeholderTextColor={Colors.cinzaMedio}
         secureTextEntry
         value={confirmarSenha}
         onChangeText={setConfirmarSenha}
       />
+      </View>
 
-      <Pressable style={styles.botao} onPress={handleCadastro}>
-        <Text style={styles.botaoTexto}>Cadastrar</Text>
-      </Pressable>
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Cadastrar" onPress={handleCadastro} />
+      </View>
 
       <Pressable onPress={() => router.back()}>
         <Text style={styles.link}>Já tenho conta</Text>
@@ -83,42 +84,32 @@ export default function CadastroScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.branco,
-    padding: 24,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 96,
     justifyContent: 'center',
   },
   titulo: {
-    fontSize: Typography.fontSizeTitle,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.verde,
+    fontSize: 32,
+    color: Colors.textWhite,
     textAlign: 'center',
     marginBottom: 32,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.cinzaMedio,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: Typography.fontSizeBase,
-    color: Colors.texto,
-    marginBottom: 16,
+  formContainer: {
+    marginBottom: 24,
   },
-  botao: {
-    backgroundColor: Colors.verde,
-    borderRadius: 8,
-    padding: 14,
+  inputSpacing: {
+    height: 14,
+  },
+  buttonContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  botaoTexto: {
-    color: Colors.branco,
-    fontSize: Typography.fontSizeMedium,
-    fontWeight: Typography.fontWeightBold,
-  },
   link: {
-    color: Colors.azul,
-    fontSize: Typography.fontSizeBase,
+    color: Colors.textWhite,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });

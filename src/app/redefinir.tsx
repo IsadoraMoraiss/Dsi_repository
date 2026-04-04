@@ -1,15 +1,15 @@
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
-  TextInput,
+  View,
 } from 'react-native';
-import Colors from '../constants/Colors';
-import Typography from '../constants/Typography';
+import CustomInput from '../components/CustomInput';
+import PrimaryButton from '../components/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
 /**
  * Tela 5 – Redefinir Senha
@@ -33,23 +33,21 @@ export default function RedefinirScreen() {
         Informe seu e-mail e enviaremos um código para redefinir sua senha.
       </Text>
 
-      <TextInput
-        style={styles.input}
+      <CustomInput
         placeholder="E-mail"
-        placeholderTextColor={Colors.cinzaMedio}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
       />
 
-      <Pressable style={styles.botao} onPress={handleEnviar}>
-        <Text style={styles.botaoTexto}>Enviar código</Text>
-      </Pressable>
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Enviar codigo" onPress={handleEnviar} />
+      </View>
 
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.link}>Voltar ao Login</Text>
-      </Pressable>
+      <Link href="/login" style={styles.link}>
+        Voltar ao Login
+      </Link>
     </KeyboardAvoidingView>
   );
 }
@@ -57,48 +55,33 @@ export default function RedefinirScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.branco,
-    padding: 24,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 96,
     justifyContent: 'center',
   },
   titulo: {
-    fontSize: Typography.fontSizeTitle,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.verde,
+    fontSize: 32,
+    color: Colors.textWhite,
     textAlign: 'center',
     marginBottom: 8,
   },
   descricao: {
-    fontSize: Typography.fontSizeBase,
-    color: Colors.cinzaMedio,
+    fontSize: 14,
+    color: Colors.textWhite,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+    opacity: 0.9,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.cinzaMedio,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: Typography.fontSizeBase,
-    color: Colors.texto,
-    marginBottom: 16,
-  },
-  botao: {
-    backgroundColor: Colors.verde,
-    borderRadius: 8,
-    padding: 14,
+  buttonContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  botaoTexto: {
-    color: Colors.branco,
-    fontSize: Typography.fontSizeMedium,
-    fontWeight: Typography.fontWeightBold,
-  },
   link: {
-    color: Colors.azul,
-    fontSize: Typography.fontSizeBase,
+    color: Colors.textWhite,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });

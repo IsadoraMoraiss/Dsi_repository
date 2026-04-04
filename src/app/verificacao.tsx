@@ -9,8 +9,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Colors from '../constants/Colors';
-import Typography from '../constants/Typography';
+import PrimaryButton from '../components/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
 const OTP_LENGTH = 6;
 
@@ -39,8 +39,7 @@ export default function VerificacaoScreen() {
   }
 
   function handleVerificar() {
-    // TODO: validar OTP com o backend e navegar para a tela principal
-    router.replace('/login');
+    router.replace('/');
   }
 
   function handleReenviar() {
@@ -78,9 +77,9 @@ export default function VerificacaoScreen() {
         ))}
       </View>
 
-      <Pressable style={styles.botao} onPress={handleVerificar}>
-        <Text style={styles.botaoTexto}>Verificar</Text>
-      </Pressable>
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Verificar" onPress={handleVerificar} />
+      </View>
 
       <Pressable onPress={handleReenviar}>
         <Text style={styles.link}>Reenviar código</Text>
@@ -92,22 +91,23 @@ export default function VerificacaoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.branco,
-    padding: 24,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 96,
     justifyContent: 'center',
   },
   titulo: {
-    fontSize: Typography.fontSizeTitle,
-    fontWeight: Typography.fontWeightBold,
-    color: Colors.verde,
+    fontSize: 32,
+    color: Colors.textWhite,
     textAlign: 'center',
     marginBottom: 8,
   },
   descricao: {
-    fontSize: Typography.fontSizeBase,
-    color: Colors.cinzaMedio,
+    fontSize: 14,
+    color: Colors.textWhite,
     textAlign: 'center',
     marginBottom: 32,
+    opacity: 0.9,
   },
   otpContainer: {
     flexDirection: 'row',
@@ -118,27 +118,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 52,
     borderWidth: 1,
-    borderColor: Colors.cinzaMedio,
-    borderRadius: 8,
-    fontSize: Typography.fontSizeLarge,
-    color: Colors.texto,
+    borderColor: Colors.inputBorder,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: 12,
+    fontSize: 24,
+    color: Colors.textDark,
   },
-  botao: {
-    backgroundColor: Colors.verde,
-    borderRadius: 8,
-    padding: 14,
+  buttonContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  botaoTexto: {
-    color: Colors.branco,
-    fontSize: Typography.fontSizeMedium,
-    fontWeight: Typography.fontWeightBold,
-  },
   link: {
-    color: Colors.azul,
-    fontSize: Typography.fontSizeBase,
+    color: Colors.textWhite,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+    textDecorationLine: 'underline',
   },
 });
