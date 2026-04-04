@@ -4,7 +4,7 @@ Protótipo desenvolvido para as disciplinas de PISI 3 e DSI da UFRPE.
 
 ## Objetivo deste guia
 
-Este passo a passo foi feito para os 4 membros do time configurarem o ambiente da mesma forma e conseguirem rodar o app sem divergencias.
+Este passo a passo foi feito para os 5 membros do time configurarem o ambiente da mesma forma e conseguirem rodar o app sem divergencias.
 
 ## Pre-requisitos
 
@@ -67,7 +67,7 @@ Entre na pasta correta e rode de novo:
 
 ```bash
 cd react_native
-npx expo start --tunnel --port 8084
+npx expo start
 ```
 
 ### Porta ocupada ou cache antigo
