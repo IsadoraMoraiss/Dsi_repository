@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
 import { Colors } from '../constants/Colors';
+import { useAuth } from '../contexts/AuthContext';
 
 const OTP_LENGTH = 6;
 
@@ -19,6 +20,7 @@ const OTP_LENGTH = 6;
  */
 export default function VerificacaoScreen() {
   const router = useRouter();
+  const { verificarOTP } = useAuth();
   const [codigo, setCodigo] = useState(Array(OTP_LENGTH).fill(''));
   const inputs = useRef<Array<TextInput | null>>([]);
 
@@ -39,7 +41,13 @@ export default function VerificacaoScreen() {
   }
 
   function handleVerificar() {
-    router.replace('/');
+    const codigoCompleto = codigo.join('');
+    if (codigoCompleto.length === OTP_LENGTH) {
+      verificarOTP(codigoCompleto);
+      router.replace('/home');
+    } else {
+      console.warn('Código incompleto');
+    }
   }
 
   function handleReenviar() {

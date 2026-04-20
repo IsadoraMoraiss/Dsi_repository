@@ -1,11 +1,10 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -14,18 +13,33 @@ import {
 import CustomInput from '../components/CustomInput';
 import PrimaryButton from '../components/PrimaryButton';
 import { Colors } from '../constants/Colors';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Tela 2 – Login
  */
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [meLembre, setMeLembre] = useState(false);
+  const [lembrar, setLembrar] = useState(true);
+  const [formError, setFormError] = useState('');
 
-  function handleLogin() {
-    router.replace('/');
+  async function handleLogin() {
+    setFormError('');
+    if (!email || !senha) {
+      setFormError('Preencha todos os campos para continuar.');
+      return;
+    }
+    
+    // Realiza o login
+    const success = await login(email, senha);
+    if (success) {
+      router.replace('/home');
+    } else {
+      setFormError('Erro ao fazer login. Tente novamente.');
+    }
   }
 
   return (
@@ -33,74 +47,68 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
+      <View style={styles.header}>
+        <MaterialIcons
+          name="location-pin"
+          size={48}
+          color={Colors.textWhite}
+          style={styles.icon}
+        />
+        <View style={styles.appNameBox}>
+          <Text style={styles.appNameBrasil}>BRASIL</Text>
+          <Text style={styles.appNameFoco}>em foco</Text>
+        </View>
+      </View>
+      <View style={styles.loginRow}>
         <Text style={styles.titulo}>Login</Text>
+      </View>
 
-        <View style={styles.formContainer}>
-          <CustomInput
-            placeholder="abc@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+      <View style={styles.formContainer}>
+        <CustomInput
+          placeholder="E-mail"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
+          placeholder="Senha"
+          secureTextEntry
+          value={senha}
+          onChangeText={setSenha}
+        />
+      </View>
+
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleLeft}>
+          <Switch
+            value={lembrar}
+            onValueChange={setLembrar}
+            trackColor={{ false: '#E0E0E0', true: Colors.primary }}
+            thumbColor={lembrar ? Colors.background : '#fff'}
           />
-          <CustomInput
-            placeholder="Senha"
-            secureTextEntry
-            value={senha}
-            onChangeText={setSenha}
-          />
+          <Text style={styles.toggleText}>Me lembre</Text>
         </View>
+        <Pressable onPress={() => router.push('/redefinir')} style={styles.forgotRight}>
+          <Text style={styles.forgotText}>Esqueceu a senha?</Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.rowOptions}>
-          <View style={styles.switchRow}>
-            <Switch
-              value={meLembre}
-              onValueChange={setMeLembre}
-              trackColor={{ false: Colors.inputBorder, true: Colors.primary }}
-              thumbColor={Colors.textWhite}
-            />
-            <Text style={styles.switchLabel}>Me Lembre</Text>
-          </View>
-          <Pressable onPress={() => router.push('/redefinir')}>
-            <Text style={styles.linkInline}>Esqueceu a senha?</Text>
-          </Pressable>
-        </View>
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Login" onPress={handleLogin} />
+      </View>
+      {formError ? (
+        <Text style={styles.formError}>{formError}</Text>
+      ) : null}
 
-        <View style={styles.buttonContainer}>
-          <PrimaryButton title="LOGIN" onPress={handleLogin} />
-        </View>
-
-        <View style={styles.separadorContainer}>
-          <View style={styles.linha} />
-          <Text style={styles.separadorTexto}>OU</Text>
-          <View style={styles.linha} />
-        </View>
-
-        <View style={styles.socialContainer}>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/color/48/google-logo.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/ios-filled/50/ffffff/mac-os.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-        </View>
-
-        <View style={styles.rodape}>
-          <Text style={styles.rodapeTexto}>Não possui conta? </Text>
-          <Pressable onPress={() => router.push('/cadastro')}>
-            <Text style={styles.linkDestaque}>Cadastre-se!</Text>
-          </Pressable>
-        </View>
-
-      </ScrollView>
+      <View style={styles.socialDivisor}>
+        <Text style={styles.socialText}>Não possui conta?{' '}
+          <Text style={styles.cadastroLink} onPress={() => router.push('/cadastro')}>Cadastre-se!</Text>
+        </Text>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -109,94 +117,113 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  scroll: {
-    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingTop: 96,
     justifyContent: 'center',
   },
-  titulo: {
-    fontSize: 32,
-    color: Colors.textWhite,
+  header: {
+    alignItems: 'center',
     marginBottom: 24,
+    marginTop: 32,
+  },
+  icon: {
+    marginBottom: 2,
+  },
+  appNameBox: {
+    alignItems: 'center',
+  },
+  appNameBrasil: {
+    fontSize: 48,
+    color: Colors.textWhite,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+  },
+  appNameFoco: {
+    fontSize: 28,
+    color: Colors.textWhite,
+    fontWeight: '400',
+    marginTop: -4,
+    letterSpacing: 1,
+  },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    width: '100%',
+    marginBottom: 24,
+    paddingLeft: 4,
+  },
+  titulo: {
+    fontSize: 22,
+    color: Colors.textWhite,
+    textAlign: 'left',
+    fontWeight: 'bold',
+  },
+  subtitulo: {
+    fontSize: 16,
+    color: Colors.textWhite,
+    textAlign: 'center',
+    marginBottom: 32,
+    opacity: 0.9,
   },
   formContainer: {
-    gap: 14,
-    marginBottom: 16,
+    marginBottom: 22,
   },
-  rowOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  switchLabel: {
-    color: Colors.textWhite,
-    fontSize: 14,
-  },
-  linkInline: {
-    color: Colors.textWhite,
-    fontSize: 14,
+  inputSpacing: {
+    height: 14,
   },
   buttonContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginVertical: 32,
   },
-  separadorContainer: {
+  toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    marginTop: 8,
   },
-  linha: {
+  toggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleText: {
+    color: Colors.textWhite,
+    fontSize: 15,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  forgotRight: {
     flex: 1,
-    height: 1,
-    backgroundColor: Colors.textWhite,
-    opacity: 0.3,
+    alignItems: 'flex-end',
   },
-  separadorTexto: {
+  forgotText: {
     color: Colors.textWhite,
+    fontSize: 15,
+    fontWeight: '400',
+    textDecorationLine: 'none',
+  },
+  socialDivisor: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  socialText: {
+    color: Colors.textGray,
+    fontSize: 15,
+  },
+  cadastroLink: {
+    color: '#4F6BED',
+    fontWeight: 'bold',
+    textDecorationLine: 'none',
+    fontSize: 15,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+  formError: {
+    color: 'red',
     fontSize: 13,
-    opacity: 0.7,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 32,
-  },
-  socialButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-  },
-  rodape: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rodapeTexto: {
-    color: Colors.textWhite,
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  linkDestaque: {
-    color: '#7B9CFF',
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: 4,
+    marginLeft: 4,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
