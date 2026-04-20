@@ -25,7 +25,7 @@ export default function LoginScreen() {
   const [meLembre, setMeLembre] = useState(false);
 
   function handleLogin() {
-    router.replace('/');
+    router.replace('/home');
   }
 
   return (

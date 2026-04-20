@@ -39,7 +39,7 @@ export default function VerificacaoScreen() {
   }
 
   function handleVerificar() {
-    router.replace('/');
+    router.replace('/home');
   }
 
   function handleReenviar() {
