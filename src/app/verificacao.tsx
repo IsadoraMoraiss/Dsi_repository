@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../constants/colors';
 
 const OTP_LENGTH = 6;
 
