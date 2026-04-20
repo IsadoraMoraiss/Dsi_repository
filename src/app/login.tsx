@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import CustomInput from '../components/CustomInput';
 import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/Colors';
+import { Colors } from '../constants/colors';
 
 /**
  * Tela 2 – Login

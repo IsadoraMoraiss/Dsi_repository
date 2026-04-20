@@ -15,17 +15,16 @@ Este passo a passo foi feito para os 5 membros do time configurarem o ambiente d
 
 ## Clone e acesso ao projeto
 
-Clone o repositorio e entre na branch `dev`:
+Clone o repositorio e entre na pasta do projeto:
 
 ```bash
-git clone https://github.com/SabinoGabriel/react_native
-cd react_native
-git checkout dev
+git clone https://github.com/IsadoraMoraiss/Dsi_repository
+cd Dsi_repository
 ```
 
 ## Instalacao de dependencias
 
-Ainda dentro da pasta `react_native`:
+Ainda dentro da pasta `Dsi_repository`:
 
 ```bash
 npm install
@@ -33,11 +32,11 @@ npm install
 
 ## Como rodar no Expo Go (forma padrao)
 
-1. Confirme que esta na pasta correta (`react_native`).
-2. Suba o servidor Expo com tunnel:
+1. Confirme que esta na pasta correta (`Dsi_repository`).
+2. Suba o servidor Expo:
 
 ```bash
-npx expo start --tunnel --port 8084
+npx expo start
 ```
 
 3. Abra o app Expo Go no celular e escaneie o QR code exibido no terminal.
@@ -54,7 +53,7 @@ npm run web
 ## Estrutura esperada
 
 - Roteamento: Expo Router com raiz em `src/app`.
-- Tokens de design: `src/constants/Colors.ts`.
+- Tokens de design: `src/constants/colors.ts`.
 - Componentes reutilizaveis: `src/components`.
 
 ## Troubleshooting rapido
@@ -66,14 +65,14 @@ Se aparecer algo como `expected package.json path ... does not exist`, voce esta
 Entre na pasta correta e rode de novo:
 
 ```bash
-cd react_native
+cd Dsi_repository
 npx expo start
 ```
 
 ### Porta ocupada ou cache antigo
 
 ```bash
-npx expo start -c --tunnel --port 8084
+npx expo start --clear
 ```
 
 ## Versoes do projeto (referencia)
