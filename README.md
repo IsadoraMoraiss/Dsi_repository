@@ -1,33 +1,66 @@
 # Brasil em Foco
 
-Protótipo desenvolvido para as disciplinas de PISI 3 e DSI da UFRPE.
+Protótipo desenvolvido para as disciplinas de **PISI 3** e **DSI** da **UFRPE**.
 
-## Fluxo recomendado
+---
 
-1. Desenvolver em blocos pequenos por funcionalidade.
-2. Manter commits curtos e objetivos.
-3. Validar o app no Expo Go antes de cada push.
+## 📌 Objetivo do Projeto
 
-## Instalação
+Criar uma aplicação mobile utilizando **React Native + Expo** que:
 
-```bash
-npm install
-```
+- Exiba informações sobre cidades brasileiras  
+- Utilize dados reais (dataset integrado)  
+- Apresente visualizações e análises  
+- Tenha interface moderna e interativa
+- Traga mais visibilidade turística para cidades em potencial de desenvolvimento
 
-Se houver conflito de dependências no npm:
+---
 
-```bash
-npm install --legacy-peer-deps
-```
+## ⚙️ Tecnologias Utilizadas
+
+- React Native  
+- Expo  
+- TypeScript  
+- JavaScript  
+- Git/GitHub  
+
+---
+
+##  Instalação
+
+Clone o repositório e instale as dependências:
+
+    npm install
+
+Caso haja conflito de dependências:
+
+    npm install --legacy-peer-deps
+
+---
 
 ## Execução
 
-```bash
-npx expo start
-```
+Para iniciar o projeto:
 
-## Estrutura atual
+    npx expo start
 
-- Rotas do app: `src/app`
-- Componentes reutilizáveis: `src/components`
-- Tokens de cor: `src/constants/colors.ts`
+Depois, abra no **Expo Go** no seu celular ou emulador.
+
+---
+
+## 🗂️ Estrutura do Projeto
+
+    src/
+     ├── app/                # Rotas e telas principais
+     ├── components/         # Componentes reutilizáveis
+     ├── constants/          # Constantes globais
+     │    └── colors.ts      # Tokens de cor
+
+---
+
+## 👥 Equipe
+
+Professor Orientador: Gabriel Alves. 
+Alunos Desenvolvedores: Arthur Barbosa, Danielly Nunes, Gabriel Sabino, Isadora Morais e Luiz Vinícius.
+
+---
