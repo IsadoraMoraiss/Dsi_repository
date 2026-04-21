@@ -60,7 +60,6 @@ Depois, abra no **Expo Go** no seu celular ou emulador.
 
 ## 👥 Equipe
 
-Professor Orientador: Gabriel Alves. 
-Alunos Desenvolvedores: Arthur Barbosa, Danielly Nunes, Gabriel Sabino, Isadora Morais e Luiz Vinícius.
+* Professor Orientador: Gabriel Alves. 
+* Alunos Desenvolvedores: Arthur Barbosa, Danielly Nunes, Gabriel Sabino, Isadora Morais e Luiz Vinícius. 
 
----
