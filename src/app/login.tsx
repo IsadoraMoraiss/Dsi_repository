@@ -9,8 +9,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import CustomInput from '../components/CustomInput';
-import PrimaryButton from '../components/PrimaryButton';
+import CustomInput from '../components/ui/CustomInput';
+import PrimaryButton from '../components/ui/PrimaryButton';
 import { Colors } from '../constants/Colors';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { Colors } from '../constants/Colors';
+import { Colors } from '../../constants/Colors';
 
 type PrimaryButtonProps = {
   title: string;
