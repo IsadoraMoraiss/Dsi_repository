@@ -5,28 +5,73 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import CustomInput from '../components/CustomInput';
-import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/colors';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import CustomInput from '../components/ui/CustomInput';
+import PrimaryButton from '../components/ui/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
-/**
- * Tela 3 – Cadastro
- */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function CadastroScreen() {
   const router = useRouter();
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [erroNome, setErroNome] = useState('');
+  const [erroEmail, setErroEmail] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
+  const [erroConfirmar, setErroConfirmar] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
   function handleCadastro() {
-    // TODO: implementar criação de conta e enviar OTP
-    router.push('/verificacao');
+    let valido = true;
+
+    if (!nome.trim()) {
+      setErroNome('O nome e obrigatorio.');
+      valido = false;
+    } else {
+      setErroNome('');
+    }
+
+    if (!email.trim()) {
+      setErroEmail('O e-mail e obrigatorio.');
+      valido = false;
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      setErroEmail('Informe um e-mail valido.');
+      valido = false;
+    } else {
+      setErroEmail('');
+    }
+
+    if (!senha) {
+      setErroSenha('A senha e obrigatoria.');
+      valido = false;
+    } else if (senha.length < 6) {
+      setErroSenha('A senha deve ter no minimo 6 caracteres.');
+      valido = false;
+    } else {
+      setErroSenha('');
+    }
+
+    if (!confirmarSenha) {
+      setErroConfirmar('Confirme a sua senha.');
+      valido = false;
+    } else if (confirmarSenha !== senha) {
+      setErroConfirmar('As senhas nao coincidem.');
+      valido = false;
+    } else {
+      setErroConfirmar('');
+    }
+
+    if (valido) {
+      router.replace('/home');
+    }
   }
 
   return (
@@ -34,70 +79,77 @@ export default function CadastroScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.logoContainer}>
+        <Image source={require('../../assets/icons/logo.png')} style={styles.logo} />
+      </View>
 
-        <Text style={styles.titulo}>Cadastro</Text>
+      <Text style={styles.titulo}>Cadastro</Text>
 
-        <View style={styles.formContainer}>
-          <CustomInput
-            placeholder="Nome Completo"
-            value={nome}
-            onChangeText={setNome}
-          />
-          <CustomInput
-            placeholder="abc@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <CustomInput
-            placeholder="Senha"
-            secureTextEntry
-            value={senha}
-            onChangeText={setSenha}
-          />
-          <CustomInput
-            placeholder="Confirme sua senha"
-            secureTextEntry
-            value={confirmarSenha}
-            onChangeText={setConfirmarSenha}
-          />
-        </View>
+      <View style={styles.formContainer}>
+        <CustomInput
+          placeholder="Nome completo"
+          value={nome}
+          onChangeText={setNome}
+        />
+        {!!erroNome && <Text style={styles.erro}>{erroNome}</Text>}
 
-        <View style={styles.buttonContainer}>
-          <PrimaryButton title="CADASTRO" onPress={handleCadastro} />
-        </View>
+        <View style={styles.inputSpacing} />
 
-        <View style={styles.separadorContainer}>
-          <View style={styles.linha} />
-          <Text style={styles.separadorTexto}>OU</Text>
-          <View style={styles.linha} />
-        </View>
+        <CustomInput
+          placeholder="E-mail"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+        {!!erroEmail && <Text style={styles.erro}>{erroEmail}</Text>}
 
-        <View style={styles.socialContainer}>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/color/48/google-logo.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/ios-filled/50/ffffff/mac-os.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-        </View>
+        <View style={styles.inputSpacing} />
 
-        <View style={styles.rodape}>
-          <Text style={styles.rodapeTexto}>Já possui uma conta? Faça o </Text>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.linkDestaque}>Login!</Text>
-          </Pressable>
-        </View>
+        <CustomInput
+          placeholder="Senha"
+          secureTextEntry={!mostrarSenha}
+          value={senha}
+          onChangeText={setSenha}
+          right={
+            <Pressable onPress={() => setMostrarSenha((v) => !v)}>
+              <MaterialIcons
+                name={mostrarSenha ? 'visibility-off' : 'visibility'}
+                size={22}
+                color={Colors.textGray}
+              />
+            </Pressable>
+          }
+        />
+        {!!erroSenha && <Text style={styles.erro}>{erroSenha}</Text>}
 
-      </ScrollView>
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
+          placeholder="Confirmar senha"
+          secureTextEntry={!mostrarConfirmar}
+          value={confirmarSenha}
+          onChangeText={setConfirmarSenha}
+          right={
+            <Pressable onPress={() => setMostrarConfirmar((v) => !v)}>
+              <MaterialIcons
+                name={mostrarConfirmar ? 'visibility-off' : 'visibility'}
+                size={22}
+                color={Colors.textGray}
+              />
+            </Pressable>
+          }
+        />
+        {!!erroConfirmar && <Text style={styles.erro}>{erroConfirmar}</Text>}
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Cadastrar" onPress={handleCadastro} />
+      </View>
+
+      <Pressable onPress={() => router.push('/login')}>
+        <Text style={styles.link}>Ja possui conta? Faca o Login</Text>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
@@ -106,75 +158,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  scroll: {
-    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingTop: 96,
     justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: 8,
   },
   titulo: {
     fontSize: 32,
     color: Colors.textWhite,
-    marginBottom: 24,
+    textAlign: 'left',
+    marginBottom: 20,
+    fontWeight: 'bold',
   },
   formContainer: {
-    gap: 14,
     marginBottom: 24,
+  },
+  inputSpacing: {
+    height: 14,
   },
   buttonContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  separadorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
-  },
-  linha: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.textWhite,
-    opacity: 0.3,
-  },
-  separadorTexto: {
-    color: Colors.textWhite,
-    fontSize: 13,
-    opacity: 0.7,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 32,
-  },
-  socialButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-  },
-  rodape: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rodapeTexto: {
+  link: {
     color: Colors.textWhite,
     fontSize: 14,
-    opacity: 0.8,
+    textAlign: 'center',
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
-  linkDestaque: {
-    color: '#7B9CFF',
-    fontSize: 14,
-    fontWeight: '600',
+  erro: {
+    color: '#FF4D4D',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 2,
   },
 });

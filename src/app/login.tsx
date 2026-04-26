@@ -1,31 +1,78 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
-import CustomInput from '../components/CustomInput';
-import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/colors';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import CustomInput from '../components/ui/CustomInput';
+import PrimaryButton from '../components/ui/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
-/**
- * Tela 2 – Login
- */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [meLembre, setMeLembre] = useState(false);
+  const [erroEmail, setErroEmail] = useState('');
+  const [erroSenha, setErroSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [lembrar, setLembrar] = useState(false);
+
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast() {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
 
   function handleLogin() {
-    router.replace('/home');
+    let valido = true;
+    const emailValido = EMAIL_REGEX.test(email.trim());
+
+    if (!email.trim()) {
+      setErroEmail('O e-mail e obrigatorio.');
+      valido = false;
+    } else if (!emailValido) {
+      setErroEmail('Informe um e-mail valido.');
+      valido = false;
+    } else {
+      setErroEmail('');
+    }
+
+    if (!senha) {
+      setErroSenha('A senha e obrigatoria.');
+      valido = false;
+    } else if (emailValido && senha.length < 6) {
+      setErroSenha('');
+      showToast();
+      return;
+    } else {
+      setErroSenha('');
+    }
+
+    if (valido) {
+      router.replace('/home');
+    }
   }
 
   return (
@@ -33,74 +80,68 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.logoContainer}>
+        <Image source={require('../../assets/icons/logo.png')} style={styles.logo} />
+      </View>
 
-        <Text style={styles.titulo}>Login</Text>
+      <Text style={styles.titulo}>Login</Text>
 
-        <View style={styles.formContainer}>
-          <CustomInput
-            placeholder="abc@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <CustomInput
-            placeholder="Senha"
-            secureTextEntry
-            value={senha}
-            onChangeText={setSenha}
-          />
-        </View>
+      <View style={styles.formContainer}>
+        <CustomInput
+          placeholder="E-mail"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+        {!!erroEmail && <Text style={styles.erro}>{erroEmail}</Text>}
 
-        <View style={styles.rowOptions}>
-          <View style={styles.switchRow}>
+        <View style={styles.inputSpacing} />
+
+        <CustomInput
+          placeholder="Senha"
+          secureTextEntry={!mostrarSenha}
+          value={senha}
+          onChangeText={setSenha}
+          right={
+            <Pressable onPress={() => setMostrarSenha((v) => !v)}>
+              <MaterialIcons
+                name={mostrarSenha ? 'visibility-off' : 'visibility'}
+                size={22}
+                color={Colors.textGray}
+              />
+            </Pressable>
+          }
+        />
+        {!!erroSenha && <Text style={styles.erro}>{erroSenha}</Text>}
+
+        <View style={styles.switchRow}>
+          <View style={styles.switchContainer}>
             <Switch
-              value={meLembre}
-              onValueChange={setMeLembre}
-              trackColor={{ false: Colors.inputBorder, true: Colors.primary }}
-              thumbColor={Colors.textWhite}
+              value={lembrar}
+              onValueChange={setLembrar}
+              trackColor={{ false: '#767577', true: Colors.primary }}
+              thumbColor={lembrar ? Colors.textWhite : '#f4f3f4'}
             />
-            <Text style={styles.switchLabel}>Me Lembre</Text>
+            <Text style={styles.switchLabel}>Lembrar de mim</Text>
           </View>
-          <Pressable onPress={() => router.push('/redefinir')}>
-            <Text style={styles.linkInline}>Esqueceu a senha?</Text>
+          <Pressable>
+            <Text style={styles.forgot}>Esqueceu a senha?</Text>
           </Pressable>
         </View>
+      </View>
 
-        <View style={styles.buttonContainer}>
-          <PrimaryButton title="LOGIN" onPress={handleLogin} />
-        </View>
+      <View style={styles.buttonContainer}>
+        <PrimaryButton title="Login" onPress={handleLogin} />
+      </View>
 
-        <View style={styles.separadorContainer}>
-          <View style={styles.linha} />
-          <Text style={styles.separadorTexto}>OU</Text>
-          <View style={styles.linha} />
-        </View>
+      <Pressable onPress={() => router.push('/cadastro')}>
+        <Text style={styles.link}>Criar conta</Text>
+      </Pressable>
 
-        <View style={styles.socialContainer}>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/color/48/google-logo.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-          <Pressable style={styles.socialButton}>
-            <Image
-              source={{ uri: 'https://img.icons8.com/ios-filled/50/ffffff/mac-os.png' }}
-              style={styles.socialIcon}
-            />
-          </Pressable>
-        </View>
-
-        <View style={styles.rodape}>
-          <Text style={styles.rodapeTexto}>Não possui conta? </Text>
-          <Pressable onPress={() => router.push('/cadastro')}>
-            <Text style={styles.linkDestaque}>Cadastre-se!</Text>
-          </Pressable>
-        </View>
-
-      </ScrollView>
+      <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+        <Text style={styles.toastTexto}>Usuario ou senha invalidos</Text>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
@@ -109,93 +150,85 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  scroll: {
-    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingTop: 96,
     justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logo: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: 8,
   },
   titulo: {
     fontSize: 32,
     color: Colors.textWhite,
-    marginBottom: 24,
+    textAlign: 'left',
+    marginBottom: 20,
+    fontWeight: 'bold',
   },
   formContainer: {
-    gap: 14,
-    marginBottom: 16,
+    marginBottom: 22,
   },
-  rowOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+  inputSpacing: {
+    height: 14,
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   switchLabel: {
     color: Colors.textWhite,
+    marginLeft: 8,
     fontSize: 14,
   },
-  linkInline: {
+  forgot: {
     color: Colors.textWhite,
     fontSize: 14,
+    textDecorationLine: 'underline',
+    opacity: 0.8,
   },
   buttonContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  separadorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
-  },
-  linha: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.textWhite,
-    opacity: 0.3,
-  },
-  separadorTexto: {
-    color: Colors.textWhite,
-    fontSize: 13,
-    opacity: 0.7,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 32,
-  },
-  socialButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialIcon: {
-    width: 28,
-    height: 28,
-  },
-  rodape: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rodapeTexto: {
+  link: {
     color: Colors.textWhite,
     fontSize: 14,
-    opacity: 0.8,
+    textAlign: 'center',
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
-  linkDestaque: {
-    color: '#7B9CFF',
+  erro: {
+    color: '#FF4D4D',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 2,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 48,
+    alignSelf: 'center',
+    backgroundColor: '#1a1a4e',
+    borderWidth: 1,
+    borderColor: '#FF4D4D',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  toastTexto: {
+    color: '#FF4D4D',
     fontSize: 14,
     fontWeight: '600',
   },

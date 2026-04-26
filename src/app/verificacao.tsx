@@ -9,8 +9,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/colors';
+import PrimaryButton from '../components/ui/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
 const OTP_LENGTH = 6;
 
@@ -39,7 +39,7 @@ export default function VerificacaoScreen() {
   }
 
   function handleVerificar() {
-    router.replace('/home');
+    router.replace('/');
   }
 
   function handleReenviar() {

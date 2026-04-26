@@ -7,9 +7,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import CustomInput from '../components/CustomInput';
-import PrimaryButton from '../components/PrimaryButton';
-import { Colors } from '../constants/colors';
+import CustomInput from '../components/ui/CustomInput';
+import PrimaryButton from '../components/ui/PrimaryButton';
+import { Colors } from '../constants/Colors';
 
 /**
  * Tela 5 – Redefinir Senha

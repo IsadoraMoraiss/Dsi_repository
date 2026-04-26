@@ -1,7 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-
-import { Colors } from '../constants/colors';
+import { Colors } from '../constants/Colors';
 
 export default function RootLayout() {
   return (
@@ -16,8 +15,6 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="cadastro" />
-        <Stack.Screen name="verificacao" />
-        <Stack.Screen name="redefinir" />
         <Stack.Screen name="home" />
       </Stack>
     </>
