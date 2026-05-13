@@ -87,6 +87,14 @@ Dsi_repository/
 - **Constantes**: sempre em `src/constants`.
 - **Nunca** misture lógica de negócio, componentes e dados em uma mesma pasta.
 
+### Regra de arquitetura para rotas (obrigatória)
+
+- Arquivos de rota em `src/app` devem ser **logic only**: estado, validação, navegação e composição.
+- **Não** declarar `StyleSheet` dentro das rotas, salvo exceções pontuais e justificadas.
+- Estilos visuais devem ficar centralizados em componentes reutilizáveis de feature (`src/components/auth`, `src/components/home`) e componentes genéricos (`src/components/ui`).
+- Tokens de design (espaçamento, tipografia, tamanhos e raio) devem vir de `src/constants/Tokens.ts`.
+- Ao criar uma nova tela, priorize `Layout` + componentes reutilizáveis ao invés de repetir estrutura visual na rota.
+
 ### Exemplo de importação correta
 
 ```tsx

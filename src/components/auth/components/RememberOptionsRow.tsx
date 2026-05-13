@@ -43,16 +43,21 @@ const styles = StyleSheet.create({
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   switchLabel: {
     color: Colors.textWhite,
     marginLeft: Spacing.xs,
     fontSize: Font.body,
+    flexShrink: 1,
   },
   forgot: {
     color: Colors.textWhite,
     fontSize: Font.body,
     textDecorationLine: 'underline',
     opacity: 0.8,
+    flexShrink: 1,
+    textAlign: 'right',
   },
 });

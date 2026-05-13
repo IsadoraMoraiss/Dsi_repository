@@ -18,6 +18,7 @@ type AuthScreenLayoutProps = {
   children: React.ReactNode;
   primaryAction?: React.ReactNode;
   footerAction?: React.ReactNode;
+  overlay?: React.ReactNode;
 };
 
 export default function AuthScreenLayout({
@@ -27,6 +28,7 @@ export default function AuthScreenLayout({
   children,
   primaryAction,
   footerAction,
+  overlay,
 }: AuthScreenLayoutProps) {
   const centered = titleAlign === 'center';
 
@@ -40,6 +42,8 @@ export default function AuthScreenLayout({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        alwaysBounceHorizontal={false}
       >
         <View style={styles.logoContainer}>
           <Image source={require('../../../../assets/icons/logo.png')} style={styles.logo} />
@@ -56,6 +60,8 @@ export default function AuthScreenLayout({
         {primaryAction ? <View style={styles.primaryAction}>{primaryAction}</View> : null}
         {footerAction ? <View style={styles.footerAction}>{footerAction}</View> : null}
       </ScrollView>
+
+      {overlay}
     </KeyboardAvoidingView>
   );
 }
@@ -65,6 +71,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
     paddingHorizontal: Spacing.pageHorizontal,
+    overflow: 'hidden',
   },
   scroll: {
     flex: 1,
