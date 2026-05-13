@@ -152,6 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 96,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   logoContainer: {
     alignItems: 'center',
@@ -186,17 +187,22 @@ const styles = StyleSheet.create({
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   switchLabel: {
     color: Colors.textWhite,
     marginLeft: 8,
     fontSize: 14,
+    flexShrink: 1,
   },
   forgot: {
     color: Colors.textWhite,
     fontSize: 14,
     textDecorationLine: 'underline',
     opacity: 0.8,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   buttonContainer: {
     alignItems: 'center',

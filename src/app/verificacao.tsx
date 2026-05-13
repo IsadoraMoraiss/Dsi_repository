@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 96,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   titulo: {
     fontSize: 32,

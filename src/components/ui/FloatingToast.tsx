@@ -20,6 +20,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: Size.toastOffsetBottom,
     alignSelf: 'center',
+    maxWidth: '90%',
     backgroundColor: '#1a1a4e',
     borderWidth: 1,
     borderColor: '#FF4D4D',
@@ -31,5 +32,6 @@ const styles = StyleSheet.create({
     color: '#FF4D4D',
     fontSize: Font.body,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
