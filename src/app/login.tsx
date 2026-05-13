@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import FloatingToast from '../components/ui/FloatingToast';
 import CustomInput from '../components/ui/CustomInput';
 import PrimaryButton from '../components/ui/PrimaryButton';
 import { Colors } from '../constants/Colors';
@@ -50,17 +51,17 @@ export default function LoginScreen() {
     const emailValido = EMAIL_REGEX.test(email.trim());
 
     if (!email.trim()) {
-      setErroEmail('O e-mail e obrigatorio.');
+      setErroEmail('O e-mail é obrigatório.');
       valido = false;
     } else if (!emailValido) {
-      setErroEmail('Informe um e-mail valido.');
+      setErroEmail('Informe um e-mail válido.');
       valido = false;
     } else {
       setErroEmail('');
     }
 
     if (!senha) {
-      setErroSenha('A senha e obrigatoria.');
+      setErroSenha('A senha é obrigatória.');
       valido = false;
     } else if (emailValido && senha.length < 6) {
       setErroSenha('');
@@ -139,9 +140,7 @@ export default function LoginScreen() {
         <Text style={styles.link}>Criar conta</Text>
       </Pressable>
 
-      <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
-        <Text style={styles.toastTexto}>Usuario ou senha invalidos</Text>
-      </Animated.View>
+      <FloatingToast message="Usuário ou senha inválidos." opacity={toastOpacity} />
     </KeyboardAvoidingView>
   );
 }
@@ -215,21 +214,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 2,
-  },
-  toast: {
-    position: 'absolute',
-    bottom: 48,
-    alignSelf: 'center',
-    backgroundColor: '#1a1a4e',
-    borderWidth: 1,
-    borderColor: '#FF4D4D',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  toastTexto: {
-    color: '#FF4D4D',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
