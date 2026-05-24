@@ -36,7 +36,7 @@ export default function AvaliacoesScreen() {
   const router = useRouter();
   const r = useResponsive();
   const insets = useSafeAreaInsets();
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
 
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -56,7 +56,7 @@ export default function AvaliacoesScreen() {
     async function carregar() {
       setCarregando(true);
       try {
-        const salvas = await listarMinhasAvaliacoes();
+        const salvas = user ? await listarMinhasAvaliacoes(user.uid) : [];
         if (ativo) setAvaliacoes(salvas);
       } finally {
         if (ativo) setCarregando(false);
@@ -67,7 +67,7 @@ export default function AvaliacoesScreen() {
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [user]);
 
   const cidadesSugeridas = useMemo(() => {
     if (cidadeSelecionada) return [];
@@ -106,6 +106,11 @@ export default function AvaliacoesScreen() {
   }
 
   async function handleAddAvaliacao() {
+    if (!user) {
+      setErroFormulario('Faça login para salvar uma avaliação.');
+      return;
+    }
+
     if (!cidadeSelecionada) {
       setErroFormulario('Selecione uma cidade válida da lista.');
       return;
@@ -120,11 +125,12 @@ export default function AvaliacoesScreen() {
       data: new Date().toLocaleDateString('pt-BR'),
       comentario: novoComentario.trim(),
       publica: novaPublica,
+      autorUid: user.uid,
       autorNome: userData?.nome ?? 'Usuário',
     };
 
     try {
-      await adicionarAvaliacao(nova);
+      await adicionarAvaliacao(user.uid, nova);
       setAvaliacoes((prev) => [nova, ...prev]);
       resetForm();
       closeModal();
@@ -135,8 +141,10 @@ export default function AvaliacoesScreen() {
   }
 
   async function handleDelete(id: string) {
+    if (!user) return;
+
     try {
-      await removerAvaliacao(id);
+      await removerAvaliacao(user.uid, id);
       setAvaliacoes((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       console.error('[avaliacoes:remover]', error);

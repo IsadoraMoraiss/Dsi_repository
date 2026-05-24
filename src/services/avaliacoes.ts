@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Avaliacao } from '../data/mockAvaliacoes';
 
-const STORAGE_KEY = 'minhasAvaliacoes';
+const LEGACY_STORAGE_KEY = 'minhasAvaliacoes';
+const STORAGE_KEY_PREFIX = 'minhasAvaliacoes:';
+
+function storageKey(uid: string) {
+  return `${STORAGE_KEY_PREFIX}${uid}`;
+}
 
 function normalize(text: string) {
   return text
@@ -26,9 +31,9 @@ export function avaliacaoMatchesCidade(
   );
 }
 
-export async function listarMinhasAvaliacoes(): Promise<Avaliacao[]> {
+async function lerAvaliacoesDaChave(key: string): Promise<Avaliacao[]> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await AsyncStorage.getItem(key);
     return raw ? (JSON.parse(raw) as Avaliacao[]) : [];
   } catch (error) {
     console.warn('[avaliacoes] Errored ao carregar:', error);
@@ -36,18 +41,37 @@ export async function listarMinhasAvaliacoes(): Promise<Avaliacao[]> {
   }
 }
 
-export async function salvarMinhasAvaliacoes(avaliacoes: Avaliacao[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(avaliacoes));
+export async function listarMinhasAvaliacoes(uid: string): Promise<Avaliacao[]> {
+  const key = storageKey(uid);
+  const salvas = await lerAvaliacoesDaChave(key);
+
+  if (salvas.length > 0) {
+    return salvas;
+  }
+
+  const antigas = await lerAvaliacoesDaChave(LEGACY_STORAGE_KEY);
+  if (antigas.length === 0) {
+    return [];
+  }
+
+  const migradas = antigas.map((av) => ({ ...av, autorUid: av.autorUid ?? uid }));
+  await salvarMinhasAvaliacoes(uid, migradas);
+  await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
+  return migradas;
 }
 
-export async function adicionarAvaliacao(avaliacao: Avaliacao): Promise<void> {
-  const atuais = await listarMinhasAvaliacoes();
-  await salvarMinhasAvaliacoes([avaliacao, ...atuais]);
+export async function salvarMinhasAvaliacoes(uid: string, avaliacoes: Avaliacao[]): Promise<void> {
+  await AsyncStorage.setItem(storageKey(uid), JSON.stringify(avaliacoes));
 }
 
-export async function removerAvaliacao(id: string): Promise<void> {
-  const atuais = await listarMinhasAvaliacoes();
-  await salvarMinhasAvaliacoes(atuais.filter((av) => av.id !== id));
+export async function adicionarAvaliacao(uid: string, avaliacao: Avaliacao): Promise<void> {
+  const atuais = await listarMinhasAvaliacoes(uid);
+  await salvarMinhasAvaliacoes(uid, [{ ...avaliacao, autorUid: uid }, ...atuais]);
+}
+
+export async function removerAvaliacao(uid: string, id: string): Promise<void> {
+  const atuais = await listarMinhasAvaliacoes(uid);
+  await salvarMinhasAvaliacoes(uid, atuais.filter((av) => av.id !== id));
 }
 
 export async function listarAvaliacoesPublicasDaCidade(
@@ -55,7 +79,22 @@ export async function listarAvaliacoesPublicasDaCidade(
   cidadeNome: string,
   cidadeEstado: string,
 ): Promise<Avaliacao[]> {
-  const todas = await listarMinhasAvaliacoes();
+  const keys = await AsyncStorage.getAllKeys();
+  const reviewKeys = keys.filter((key) => key === LEGACY_STORAGE_KEY || key.startsWith(STORAGE_KEY_PREFIX));
+  const pares = await AsyncStorage.multiGet(reviewKeys);
+  const todas = pares.flatMap(([key, raw]) => {
+    if (!raw) return [];
+    try {
+      const avaliacoes = JSON.parse(raw) as Avaliacao[];
+      if (key === LEGACY_STORAGE_KEY) return avaliacoes;
+      const uid = key.slice(STORAGE_KEY_PREFIX.length);
+      return avaliacoes.map((av) => ({ ...av, autorUid: av.autorUid ?? uid }));
+    } catch (error) {
+      console.warn('[avaliacoes] Erro ao carregar avaliacoes publicas:', error);
+      return [];
+    }
+  });
+
   return todas.filter(
     (av) => av.publica && avaliacaoMatchesCidade(av, cidadeId, cidadeNome, cidadeEstado),
   );

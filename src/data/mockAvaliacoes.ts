@@ -7,6 +7,7 @@ export type Avaliacao = {
   data: string;
   comentario: string;
   publica: boolean;
+  autorUid?: string;
   autorNome?: string;
 };
 
