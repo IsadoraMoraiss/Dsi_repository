@@ -5,7 +5,6 @@ import { Colors } from '../../constants/Colors';
 import { Radius, Shadow } from '../../constants/Tokens';
 import { Cidade } from '../../data/mockCidades';
 import { useResponsive } from '../../utils/responsive';
-import BottomNav from './BottomNav';
 import HomeSearchHeader from './HomeSearchHeader';
 import HomeSection from './HomeSection';
 
@@ -14,10 +13,8 @@ type HomeScreenContentProps = {
   resultadoBusca: Cidade[] | null;
   recomendadas: Cidade[];
   ultimas: Cidade[];
-  navAtivo: 'explorar' | 'roteiro' | 'mapa' | 'perfil';
   onChangeBusca: (value: string) => void;
   onSubmitBusca: () => void;
-  onChangeNav: (key: 'explorar' | 'roteiro' | 'mapa' | 'perfil') => void;
 };
 
 export default function HomeScreenContent({
@@ -25,10 +22,8 @@ export default function HomeScreenContent({
   resultadoBusca,
   recomendadas,
   ultimas,
-  navAtivo,
   onChangeBusca,
   onSubmitBusca,
-  onChangeNav,
 }: HomeScreenContentProps) {
   const insets = useSafeAreaInsets();
   const r = useResponsive();
@@ -41,7 +36,7 @@ export default function HomeScreenContent({
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: r.scaleY(20), paddingBottom: insets.bottom + r.scaleY(72) + r.scaleY(20) },
+          { paddingTop: r.scaleY(20), paddingBottom: insets.bottom + r.scaleY(96) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -77,10 +72,12 @@ export default function HomeScreenContent({
           emptyText="Nenhuma cidade nesta categoria."
         />
 
-        <HomeSection title="Últimas visualizações" data={ultimas} />
+        <HomeSection
+          title="Últimas visualizações"
+          data={ultimas}
+          emptyText="Nenhuma cidade visualizada ainda."
+        />
       </ScrollView>
-
-      <BottomNav activeKey={navAtivo} onChange={onChangeNav} bottomInset={insets.bottom} />
     </SafeAreaView>
   );
 }
@@ -94,8 +91,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
-  },
+  content: {},
   categoryWrapper: {
     marginBottom: 24,
     paddingHorizontal: 16,

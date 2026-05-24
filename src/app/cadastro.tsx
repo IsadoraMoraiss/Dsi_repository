@@ -1,7 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, Alert, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db, isFirebaseConfigured } from '../services/firebase';
+import { garantirPerfilUsuario } from '../services/usuarios';
 import AuthLinkAction from '../components/auth/components/AuthLinkAction';
 import AuthScreenLayout from '../components/auth/components/AuthScreenLayout';
 import FormField from '../components/auth/components/FormField';
@@ -23,32 +27,38 @@ export default function CadastroScreen() {
   const [erroConfirmar, setErroConfirmar] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleCadastro() {
+  async function handleCadastro() {
+    console.log('BOTÃO CADASTRO CLICADO');
+
+    // 1. Validacao local — se algo falhar, nao chama Firebase nem navega.
     let valido = true;
+    const nomeTrim = nome.trim();
+    const emailTrim = email.trim();
 
-    if (!nome.trim()) {
-      setErroNome('O nome e obrigatorio.');
+    if (!nomeTrim) {
+      setErroNome('O nome é obrigatório.');
       valido = false;
     } else {
       setErroNome('');
     }
 
-    if (!email.trim()) {
-      setErroEmail('O e-mail e obrigatorio.');
+    if (!emailTrim) {
+      setErroEmail('O e-mail é obrigatório.');
       valido = false;
-    } else if (!EMAIL_REGEX.test(email.trim())) {
-      setErroEmail('Informe um e-mail valido.');
+    } else if (!EMAIL_REGEX.test(emailTrim)) {
+      setErroEmail('Informe um e-mail válido.');
       valido = false;
     } else {
       setErroEmail('');
     }
 
     if (!senha) {
-      setErroSenha('A senha e obrigatoria.');
+      setErroSenha('A senha é obrigatória.');
       valido = false;
     } else if (senha.length < 6) {
-      setErroSenha('A senha deve ter no minimo 6 caracteres.');
+      setErroSenha('A senha deve ter no mínimo 6 caracteres.');
       valido = false;
     } else {
       setErroSenha('');
@@ -58,22 +68,88 @@ export default function CadastroScreen() {
       setErroConfirmar('Confirme a sua senha.');
       valido = false;
     } else if (confirmarSenha !== senha) {
-      setErroConfirmar('As senhas nao coincidem.');
+      setErroConfirmar('As senhas não coincidem.');
       valido = false;
     } else {
       setErroConfirmar('');
     }
 
-    if (valido) {
-      router.replace('/home');
+    if (!valido) return;
+
+    // DEV_FALLBACK: remove after Firebase integration is complete.
+    // Modo desenvolvimento: sem Firebase, simula cadastro e volta para /login.
+    // Importante: no React Native Web o callback do botao do Alert nao dispara,
+    // entao navegamos antes/independente do Alert.
+    if (!isFirebaseConfigured || !auth || !db) {
+      Alert.alert('Modo desenvolvimento', 'Cadastro simulado. Nenhuma conta real foi criada.');
+      router.replace('/login');
+      return;
+    }
+
+    // 3. Fluxo real do Firebase
+    setLoading(true);
+    let contaCriada = false;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, emailTrim, senha);
+      const user = userCredential.user;
+      contaCriada = true;
+      await updateProfile(user, { displayName: nomeTrim });
+
+      await setDoc(doc(db, 'usuarios', user.uid), {
+        nome: nomeTrim,
+        email: emailTrim,
+        telefone: '',
+        dataNascimento: '',
+        avatarUrl: '',
+        createdAt: new Date().toISOString(),
+        preferenciasConcluidas: false,
+        preferencias: {},
+        requisitos: [],
+        roteirosSalvos: [],
+      });
+      await garantirPerfilUsuario(user, { nome: nomeTrim, email: emailTrim });
+
+      // createUserWithEmailAndPassword loga automaticamente; saimos para forcar
+      // login manual e cair no onboarding de preferencias.
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error: any) {
+      console.error('[cadastro]', error);
+      let mensagem = 'Erro ao criar conta. Tente novamente.';
+
+      if (contaCriada) {
+        mensagem =
+          'Sua conta foi criada, mas nao foi possivel salvar seu perfil. ' +
+          'Verifique as Regras do Firestore (colecao "usuarios") e tente fazer login.';
+        try { await signOut(auth); } catch {}
+        router.replace('/login');
+      } else if (error.code === 'auth/email-already-in-use') {
+        mensagem = 'Este e-mail já está em uso.';
+      } else if (error.code === 'auth/invalid-email') {
+        mensagem = 'Informe um e-mail válido.';
+      } else if (error.code === 'auth/weak-password') {
+        mensagem = 'A senha precisa ter pelo menos 6 caracteres.';
+      } else if (error.code === 'auth/network-request-failed') {
+        mensagem = 'Falha de conexão. Verifique sua internet.';
+      }
+
+      Alert.alert('Erro', mensagem);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <AuthScreenLayout
       title="Cadastro"
-      primaryAction={<PrimaryButton title="Cadastrar" onPress={handleCadastro} />}
-      footerAction={<AuthLinkAction label="Ja possui conta? Faca o Login" onPress={() => router.push('/login')} />}
+      primaryAction={
+        loading ? (
+          <ActivityIndicator color={Colors.primary} />
+        ) : (
+          <PrimaryButton title="Cadastrar" onPress={handleCadastro} />
+        )
+      }
+      footerAction={<AuthLinkAction label="Já possui conta? Faça o Login" onPress={() => router.push('/login')} />}
     >
       <FormField error={erroNome}>
         <CustomInput

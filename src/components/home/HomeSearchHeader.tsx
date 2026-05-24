@@ -22,7 +22,7 @@ export default function HomeSearchHeader({
     <View style={styles.wrapper}>
       <TouchableOpacity
         activeOpacity={0.9}
-        style={[styles.block, { height: r.scaleY(128), paddingHorizontal: r.scaleX(20), paddingBottom: r.scaleY(16) }]}
+        style={[styles.block, { height: r.scaleY(80), paddingHorizontal: r.scaleX(20), paddingBottom: r.scaleY(12), paddingTop: r.scaleY(12) }]}
         onPress={() => null}
       >
         <View style={[styles.inputRow, { paddingHorizontal: r.scaleX(12), height: r.scaleY(42) }]}>

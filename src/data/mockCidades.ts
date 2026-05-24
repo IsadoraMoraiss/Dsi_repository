@@ -1,10 +1,15 @@
+import type { CategoriaDestinoId, MacrorregiaoId } from '../constants/preferencias';
+
 export type Cidade = {
   id: string;
   nome: string;
   estado: string;
-  regiao: string;
+  regiao: MacrorregiaoId | string;
   avaliacao: number;
+  /** Categoria legada para exibição em cards */
   categoria: string;
+  /** Tags inferidas do dataset (REGIAO_TUR / ALT) — usadas no filtro de preferências */
+  categorias?: CategoriaDestinoId[];
   imagemUrl: string;
 };
 
@@ -18,6 +23,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Sul',
     avaliacao: 4.8,
     categoria: 'Praia',
+    categorias: ['praia-litoral'],
     imagemUrl: 'https://picsum.photos/seed/Florianopolis/300/200',
   },
   {
@@ -27,6 +33,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Nordeste',
     avaliacao: 4.7,
     categoria: 'Cultura',
+    categorias: ['cultura-historico', 'praia-litoral'],
     imagemUrl: 'https://picsum.photos/seed/Salvador/300/200',
   },
   {
@@ -36,6 +43,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Sul',
     avaliacao: 4.9,
     categoria: 'Natureza',
+    categorias: ['serras-montanha', 'gastronomia-vinhos'],
     imagemUrl: 'https://picsum.photos/seed/Gramado/300/200',
   },
   {
@@ -45,6 +53,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Sudeste',
     avaliacao: 4.8,
     categoria: 'Histórico',
+    categorias: ['cultura-historico'],
     imagemUrl: 'https://picsum.photos/seed/OuroPreto/300/200',
   },
   {
@@ -54,6 +63,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Nordeste',
     avaliacao: 4.6,
     categoria: 'Praia',
+    categorias: ['praia-litoral'],
     imagemUrl: 'https://picsum.photos/seed/Fortaleza/300/200',
   },
   {
@@ -63,6 +73,7 @@ export const cidadesRecomendadas: Cidade[] = [
     regiao: 'Sudeste',
     avaliacao: 4.5,
     categoria: 'Gastronomia',
+    categorias: ['gastronomia-vinhos', 'cultura-historico'],
     imagemUrl: 'https://picsum.photos/seed/SaoPaulo/300/200',
   },
 ];

@@ -46,6 +46,14 @@ export const IconSize = {
   lg: scale(24),
 } as const;
 
+export const BorderWidth = {
+  thin: 1,
+} as const;
+
+export const LetterSpacing = {
+  tight: 1,
+} as const;
+
 export const Font = {
   caption: fontScale(12),
   body: fontScale(14),
@@ -80,6 +88,8 @@ export const Theme = {
   radius: Radius,
   size: Size,
   icon: IconSize,
+  borderWidth: BorderWidth,
+  letterSpacing: LetterSpacing,
   font: Font,
   shadow: Shadow,
 } as const;

@@ -2,6 +2,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { BorderWidth, Font, Radius, Size, Spacing } from '../../constants/Tokens';
 
 type CustomInputProps = TextInputProps & {
   right?: React.ReactNode;
@@ -25,22 +26,22 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 1,
+    height: Size.inputHeightMd,
+    borderRadius: Radius.md,
+    borderWidth: BorderWidth.thin,
     borderColor: Colors.inputBorder,
     backgroundColor: Colors.inputBackground,
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.xs,
   },
   input: {
     flex: 1,
     color: Colors.textGray,
-    fontSize: 14,
-    paddingHorizontal: 8,
+    fontSize: Font.body,
+    paddingHorizontal: Spacing.xs,
     height: '100%',
   },
   right: {
-    marginLeft: 4,
+    marginLeft: Spacing.xxs,
     justifyContent: 'center',
     alignItems: 'center',
     height: '100%',

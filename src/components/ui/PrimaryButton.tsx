@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { Colors } from '../../constants/Colors';
+import { Font, LetterSpacing, Radius, Shadow, Size } from '../../constants/Tokens';
 
 type PrimaryButtonProps = {
   title: string;
@@ -19,22 +20,18 @@ export default function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
 const styles = StyleSheet.create({
   button: {
     width: '100%',
-    maxWidth: 271,
-    height: 58,
-    borderRadius: 15,
+    maxWidth: Size.buttonMaxWidth,
+    height: Size.buttonHeight,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
+    ...Shadow.button,
   },
   text: {
-    fontSize: 16,
+    fontSize: Font.bodyMd,
     color: Colors.textWhite,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: LetterSpacing.tight,
   },
 });
