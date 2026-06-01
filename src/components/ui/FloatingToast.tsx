@@ -1,6 +1,6 @@
 import React from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
-import { Font, Radius, Size, Spacing } from '../../constants/Tokens';
+import { BorderWidth, Font, Radius, Size, Spacing } from '../../constants/Tokens';
 
 type FloatingToastProps = {
   message: string;
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     maxWidth: '90%',
     backgroundColor: '#1a1a4e',
-    borderWidth: 1,
+    borderWidth: BorderWidth.thin,
     borderColor: '#FF4D4D',
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.sm,
