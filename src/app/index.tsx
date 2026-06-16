@@ -36,7 +36,7 @@ export default function SplashScreen() {
     }
 
     if (userData?.preferenciasConcluidas === true) {
-      router.replace('/home');
+      router.replace('/(tabs)/explorar' as any);
     } else {
       router.replace('/perfil/preferencias');
     }

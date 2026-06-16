@@ -8,12 +8,17 @@ function storageKey(uid: string) {
   return `${STORAGE_KEY_PREFIX}${uid}`;
 }
 
-function normalize(text: string) {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
+function normalize(text: string | undefined | null): string {
+  if (!text) return '';
+  try {
+    return text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  } catch {
+    return '';
+  }
 }
 
 export function avaliacaoMatchesCidade(
@@ -22,8 +27,8 @@ export function avaliacaoMatchesCidade(
   cidadeNome: string,
   cidadeEstado: string,
 ): boolean {
-  if (cidadeId && avaliacao.cidadeId) {
-    return avaliacao.cidadeId === cidadeId;
+  if (cidadeId && avaliacao.cidadeId && cidadeId === avaliacao.cidadeId) {
+    return true;
   }
   return (
     normalize(avaliacao.cidadeNome) === normalize(cidadeNome) &&
@@ -78,6 +83,7 @@ export async function listarAvaliacoesPublicasDaCidade(
   cidadeId: string | undefined,
   cidadeNome: string,
   cidadeEstado: string,
+  viewerUid?: string,
 ): Promise<Avaliacao[]> {
   const keys = await AsyncStorage.getAllKeys();
   const reviewKeys = keys.filter((key) => key === LEGACY_STORAGE_KEY || key.startsWith(STORAGE_KEY_PREFIX));
@@ -96,7 +102,9 @@ export async function listarAvaliacoesPublicasDaCidade(
   });
 
   return todas.filter(
-    (av) => av.publica && avaliacaoMatchesCidade(av, cidadeId, cidadeNome, cidadeEstado),
+    (av) =>
+      (av.publica || (viewerUid && av.autorUid === viewerUid)) &&
+      avaliacaoMatchesCidade(av, cidadeId, cidadeNome, cidadeEstado),
   );
 }
 

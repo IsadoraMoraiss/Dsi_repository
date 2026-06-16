@@ -1,6 +1,8 @@
 export type Roteiro = {
   id: string;
   nome: string;
+  descricao?: string;
+  autorNome?: string;
   cidades: string[];
   distanciaKm: number;
   duracao: string;
@@ -8,11 +10,7 @@ export type Roteiro = {
   cor: string;
   privado: boolean;
   favoritado: boolean;
-  favoritosCount: number;
-  visualizacoesCount: number;
   imagemUrl?: string;
-  autorNome?: string;
-  descricao?: string;
 };
 
 export const roteirosFavoritos: Roteiro[] = [
@@ -26,8 +24,6 @@ export const roteirosFavoritos: Roteiro[] = [
     cor: '#F59E0B',
     privado: false,
     favoritado: true,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/praiaNordeste/120/120',
   },
   {
@@ -40,8 +36,6 @@ export const roteirosFavoritos: Roteiro[] = [
     cor: '#10B981',
     privado: true,
     favoritado: true,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/cidadesNorte/120/120',
   },
   {
@@ -54,8 +48,6 @@ export const roteirosFavoritos: Roteiro[] = [
     cor: '#EF4444',
     privado: false,
     favoritado: true,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/praiasSudeste/120/120',
   },
 ];
@@ -71,25 +63,19 @@ export const roteirosRecomendados: Roteiro[] = [
     cor: '#3B82F6',
     privado: false,
     favoritado: true,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/litoral/120/120',
   },
   {
     id: '5',
     nome: 'Para aproveitar o frio',
-    cidades: ['Gramado, RS', 'Canela, RS', 'Bento Gonçalves, RS', 'Campos do Jordão, SP', 'Curitiba, PR'],
-    distanciaKm: 980,
+    cidades: ['Gramado', 'Canela', 'Serra Gaúcha'],
+    distanciaKm: 200,
     duracao: '5-10 dias',
     tipo: 'Inverno',
     cor: '#6366F1',
     privado: false,
     favoritado: false,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/frio/120/120',
-    autorNome: 'Marina Alves',
-    descricao: 'Roteiro compartilhado pela comunidade com cidades frias, serra, gastronomia e passeios urbanos.',
   },
   {
     id: '6',
@@ -101,8 +87,6 @@ export const roteirosRecomendados: Roteiro[] = [
     cor: '#8B5CF6',
     privado: false,
     favoritado: false,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/trilhas/120/120',
   },
   {
@@ -115,8 +99,6 @@ export const roteirosRecomendados: Roteiro[] = [
     cor: '#059669',
     privado: false,
     favoritado: true,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/rioPontos/120/120',
   },
   {
@@ -129,8 +111,6 @@ export const roteirosRecomendados: Roteiro[] = [
     cor: '#0891B2',
     privado: false,
     favoritado: false,
-    favoritosCount: 0,
-    visualizacoesCount: 0,
     imagemUrl: 'https://picsum.photos/seed/sul/120/120',
   },
 ];
