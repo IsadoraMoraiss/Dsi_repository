@@ -12,12 +12,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import IntelTuristicaSection from '../components/home/IntelTuristicaSection';
 import StarRating from '../components/ui/StarRating';
 import { Colors } from '../constants/Colors';
 import { Avaliacao } from '../data/mockAvaliacoes';
 import { cidadesRecomendadas, ultimasVisualizadas } from '../data/mockCidades';
 import { getCidadeDatasetById } from '../data/cidadesDataset';
 import { useAuth } from '../context/AuthContext';
+import { useRecentViews } from '../context/RecentViewsContext';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import { buscarImagemCidade } from '../services/pexels';
 import { adicionarCidadeAoRoteiroAutomatico } from '../services/roteiros';
@@ -42,18 +44,27 @@ export default function DetalhesCidadeScreen() {
   const r = useResponsive();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string }>();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
+  const { addRecentCidade } = useRecentViews();
 
-  const cidadeDataset = params.id ? getCidadeDatasetById(params.id) : undefined;
   const cidadeMock =
     cidadesRecomendadas.find((c) => c.id === params.id) ??
     ultimasVisualizadas.find((c) => c.id === params.id);
 
+  const cidadeDataset = params.id ? getCidadeDatasetById(params.id) : undefined;
+
   const [heroUrl, setHeroUrl] = useState<string | null>(null);
   const [showReviews, setShowReviews] = useState(false);
   const [avaliacoesCidade, setAvaliacoesCidade] = useState<Avaliacao[]>([]);
-  const [favoritado, setFavoritado] = useState(false);
   const [adicionandoRoteiro, setAdicionandoRoteiro] = useState(false);
+
+  useEffect(() => {
+    if (cidadeDataset) {
+      addRecentCidade(toCidadeLegacy(cidadeDataset));
+    } else if (cidadeMock) {
+      addRecentCidade(cidadeMock);
+    }
+  }, [cidadeDataset, cidadeMock, addRecentCidade]);
 
   const nomeCidade = cidadeDataset?.nome ?? cidadeMock?.nome;
   const imagemFallback = cidadeDataset?.imagemUrl ?? cidadeMock?.imagemUrl;
@@ -68,9 +79,10 @@ export default function DetalhesCidadeScreen() {
       cidadeDataset?.id ?? cidadeMock?.id,
       nomeCidade,
       estadoCidade,
+      user?.uid,
     );
     setAvaliacoesCidade(lista);
-  }, [cidadeDataset?.id, cidadeMock?.id, nomeCidade, estadoCidade]);
+  }, [cidadeDataset?.id, cidadeMock?.id, nomeCidade, estadoCidade, user?.uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -130,15 +142,6 @@ export default function DetalhesCidadeScreen() {
   const avaliacao = mediaAvaliacoes ?? cidadeMock?.avaliacao ?? 4.5;
   const regiao = cidadeDataset?.regiao ?? cidadeMock?.regiao ?? '';
   const estado = estadoCidade;
-
-  function handleFavoritar() {
-    setFavoritado((v) => !v);
-    Alert.alert('Favoritos', 'Cidade favoritada no modo desenvolvimento.');
-  }
-
-  function handleAvaliar() {
-    Alert.alert('Avaliar', 'Avaliação simulada no modo desenvolvimento.');
-  }
 
   async function handleAdicionarRoteiro() {
     if (!cidadeDataset) {
@@ -246,18 +249,25 @@ export default function DetalhesCidadeScreen() {
 
           <View style={styles.actionsRow}>
             <ActionButton
-              icon={favoritado ? 'favorite' : 'favorite-border'}
-              label={favoritado ? 'Favoritado' : 'Favoritar'}
-              onPress={handleFavoritar}
-              r={r}
-            />
-            <ActionButton icon="star-rate" label="Avaliar" onPress={handleAvaliar} r={r} />
-            <ActionButton
               icon="playlist-add"
               label={adicionandoRoteiro ? 'Salvando' : 'Roteiro'}
               onPress={handleAdicionarRoteiro}
               r={r}
               disabled={adicionandoRoteiro || !cidadeDataset}
+            />
+
+            <ActionButton
+              icon="support-agent"
+              label="Guias"
+              onPress={() =>
+                router.push({
+                  pathname: '/guias',
+                  params: {
+                    cidade: nomeCidade,
+                  },
+                })
+              }
+              r={r}
             />
           </View>
 
@@ -298,6 +308,8 @@ export default function DetalhesCidadeScreen() {
                   {agencias ? <InfoCard icon="store" title="Turismo local" desc={agencias} r={r} /> : null}
                   {pibLabel ? <InfoCard icon="attach-money" title="Economia local" desc={pibLabel} r={r} /> : null}
                   {altitudeLabel ? <InfoCard icon="terrain" title="Relevo" desc={altitudeLabel} r={r} /> : null}
+
+                  <IntelTuristicaSection cidade={cidadeDataset} />
                 </>
               ) : (
                 <InfoCard icon="info" title="Dados parciais" desc="Esta cidade usa dados resumidos do app." r={r} />
@@ -311,32 +323,43 @@ export default function DetalhesCidadeScreen() {
           ) : (
             <>
               {avaliacoesCidade.length > 0 ? (
-                avaliacoesCidade.map((av) => (
-                  <View key={av.id} style={styles.reviewCard}>
-                    <View style={styles.reviewHeader}>
-                      <View style={[styles.reviewAvatar, styles.reviewAvatarLetter]}>
-                        <Text style={styles.reviewAvatarLetterText}>
-                          {(av.autorNome ?? 'U').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <View style={styles.reviewMeta}>
-                          <Text style={[styles.reviewAutor, { fontSize: r.font(15) }]}>
-                            {av.autorNome ?? 'Usuário'}
-                          </Text>
-                          <Text style={[styles.reviewData, { fontSize: r.font(13) }]}>{av.data}</Text>
-                          <Text style={[styles.reviewNota, { fontSize: r.font(15) }]}>
-                            {av.nota.toFixed(1)} <MaterialIcons name="star" size={14} color="#F59E0B" />
-                          </Text>
+                avaliacoesCidade.map((av) => {
+                  const isMinha = user && av.autorUid === user.uid;
+                  const liveAvatarUrl = isMinha ? userData?.avatarUrl : av.avatarUrl;
+                  const liveAutorNome = isMinha ? (userData?.nome || av.autorNome) : av.autorNome;
+                  return (
+                    <React.Fragment key={av.id}>
+                      <View style={styles.reviewCard}>
+                        <View style={styles.reviewHeader}>
+                          {liveAvatarUrl ? (
+                            <Image source={{ uri: liveAvatarUrl }} style={styles.reviewAvatarImage} />
+                          ) : (
+                            <View style={[styles.reviewAvatar, styles.reviewAvatarLetter]}>
+                              <Text style={styles.reviewAvatarLetterText}>
+                                {(liveAutorNome ?? 'U').charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <View style={styles.reviewMeta}>
+                              <Text style={[styles.reviewAutor, { fontSize: r.font(15) }]}>
+                                {liveAutorNome ?? 'Usuário'}
+                              </Text>
+                              <Text style={[styles.reviewData, { fontSize: r.font(13) }]}>{av.data}</Text>
+                              <Text style={[styles.reviewNota, { fontSize: r.font(15) }]}>
+                                {av.nota.toFixed(1)} <MaterialIcons name="star" size={14} color="#F59E0B" />
+                              </Text>
+                            </View>
+                            {av.comentario ? (
+                              <Text style={[styles.reviewComentario, { fontSize: r.font(14) }]}>{av.comentario}</Text>
+                            ) : null}
+                          </View>
                         </View>
-                        {av.comentario ? (
-                          <Text style={[styles.reviewComentario, { fontSize: r.font(14) }]}>{av.comentario}</Text>
-                        ) : null}
                       </View>
-                    </View>
-                    <View style={styles.reviewDivider} />
-                  </View>
-                ))
+                      <View style={styles.reviewDivider} />
+                    </React.Fragment>
+                  );
+                })
               ) : (
                 <Text style={[styles.emptyReviewsText, { fontSize: r.font(14) }]}>
                   Nenhuma avaliação pública para esta cidade ainda.
@@ -529,6 +552,7 @@ const styles = StyleSheet.create({
   reviewCard: { marginBottom: 4 },
   reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12 },
   reviewAvatar: { width: 44, height: 44, borderRadius: 22 },
+  reviewAvatarImage: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
   reviewAvatarLetter: {
     backgroundColor: '#4B4B8A',
     alignItems: 'center',
