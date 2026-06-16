@@ -170,19 +170,18 @@ export function subtituloAutorRoteiro(
   isDono: boolean,
 ): string {
   if (ehRoteiroDaComunidade(roteiro)) {
-    return 'Sugerido pelo Brasil em Foco';
+    return 'Sugerido pela Equipe do Brasil em Foco';
   }
-  if (isDono) return 'Criado por você';
-  return `Por ${roteiro.autorNome ?? 'Brasil em Foco'}`;
+  return `Criado por ${roteiro.autorNome || 'Membro da Comunidade'}`;
 }
 
 export function autorExibicaoRoteiro(
   roteiro: Pick<Roteiro, 'nome' | 'cidades' | 'autorNome'>,
   isDono: boolean,
 ): string {
-  if (ehRoteiroDaComunidade(roteiro)) return 'Brasil em Foco';
+  if (ehRoteiroDaComunidade(roteiro)) return 'Equipe do Brasil em Foco';
   if (isDono) return 'Você';
-  return roteiro.autorNome ?? 'Brasil em Foco';
+  return roteiro.autorNome || 'Membro da Comunidade';
 }
 
 /** Roteiro criado pelo usuário em "Criar roteiro" (não é cópia do catálogo). */

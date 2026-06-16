@@ -189,6 +189,10 @@ export function toCidadeLegacy(cidade: CidadeDataset): Cidade {
     categoria: cidade.categoria,
     categorias: cidade.categorias,
     imagemUrl: cidade.imagemUrl,
+    clima: 'Temperado',
+    energia: 'Moderado',
+    estilos: cidade.categorias ?? [],
+    descricao: cidade.regiaoTur || cidade.categoria,
   };
 }
 
