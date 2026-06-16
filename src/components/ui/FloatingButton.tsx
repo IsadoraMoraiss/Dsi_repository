@@ -7,22 +7,25 @@ import { cityDetailsTheme as theme } from '../../theme/cityDetailsTheme';
 type FloatingButtonProps = {
   label: string;
   onPress: () => void;
+  icon?: keyof typeof Ionicons.glyphMap;
   style?: ViewStyle;
 };
 
-export const FloatingButton = memo(({ label, onPress, style }: FloatingButtonProps) => (
+export const FloatingButton = memo(({ label, onPress, icon = 'map', style }: FloatingButtonProps) => (
   <Pressable
     accessibilityRole="button"
     accessibilityLabel={label}
     onPress={onPress}
     style={({ pressed }) => [styles.button, style, pressed && styles.pressed]}
   >
-    <Ionicons name="map" size={20} color="#FFFFFF" />
+    <Ionicons name={icon} size={20} color="#FFFFFF" />
     <Text numberOfLines={1} style={styles.label}>
       {label}
     </Text>
   </Pressable>
 ));
+
+export default FloatingButton;
 
 FloatingButton.displayName = 'FloatingButton';
 

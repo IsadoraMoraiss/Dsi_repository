@@ -11,6 +11,7 @@ interface UserData {
   dataNascimento?: string;
   avatarUrl?: string;
   preferenciasConcluidas?: boolean;
+  emailVerificado?: boolean;
   preferencias?: Record<string, unknown>;
   requisitos?: string[];
   roteirosSalvos?: string[];
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...data,
           nome: data.nome || authUser?.displayName || 'Usuário',
           email: data.email || authUser?.email || '',
+          avatarUrl: data.avatarUrl ?? '',
         });
       } else if (authUser) {
         await garantirPerfilUsuario(authUser);
@@ -54,7 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...data,
           nome: authUser.displayName || 'Usuário',
           email: authUser.email || '',
+          avatarUrl: data?.avatarUrl ?? '',
           preferenciasConcluidas: data?.preferenciasConcluidas ?? false,
+          emailVerificado: data?.emailVerificado ?? false,
           preferencias: data?.preferencias ?? {},
           requisitos: data?.requisitos ?? [],
           roteirosSalvos: data?.roteirosSalvos ?? [],

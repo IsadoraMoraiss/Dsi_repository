@@ -1,4 +1,5 @@
 import { Colors } from './Colors';
+import { Platform } from 'react-native';
 import { fontScale, mScale, scale, vScale } from '../utils/responsive';
 
 export const Spacing = {
@@ -35,7 +36,6 @@ export const Size = {
   homeCardImageHeight: vScale(118),
   searchBlockHeight: vScale(128),
   footerHeight: vScale(72),
-  buttonMaxWidth: scale(271),
   categoryButtonMinWidth: scale(80),
   toastOffsetBottom: vScale(48),
 } as const;
@@ -67,18 +67,40 @@ export const Font = {
 
 export const Shadow = {
   button: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: vScale(4) },
-    shadowOpacity: 0.12,
-    shadowRadius: scale(8),
-    elevation: 3,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: vScale(4) },
+        shadowOpacity: 0.12,
+        shadowRadius: scale(8),
+      },
+      android: { elevation: 3 },
+      default: {},
+    }),
   },
   subtle: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: vScale(1) },
-    shadowOpacity: 0.08,
-    shadowRadius: scale(2),
-    elevation: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: vScale(1) },
+        shadowOpacity: 0.08,
+        shadowRadius: scale(2),
+      },
+      android: { elevation: 1 },
+      default: {},
+    }),
+  },
+  modal: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: vScale(10) },
+        shadowOpacity: 0.25,
+        shadowRadius: scale(10),
+      },
+      android: { elevation: 8 },
+      default: {},
+    }),
   },
 } as const;
 
