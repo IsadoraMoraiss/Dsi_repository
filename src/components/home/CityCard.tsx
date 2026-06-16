@@ -4,7 +4,6 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Radius } from '../../constants/Tokens';
 import { Cidade } from '../../data/mockCidades';
-import { useRecentViews } from '../../context/RecentViewsContext';
 import { clamp, useResponsive } from '../../utils/responsive';
 import { buscarImagemCidade } from '../../services/pexels';
 type CityCardProps = {
@@ -14,7 +13,6 @@ type CityCardProps = {
 export default function CityCard({ cidade }: CityCardProps) {
   const r = useResponsive();
   const router = useRouter();
-  const { addRecentCidade } = useRecentViews();
   const [imagem, setImagem] = useState('');
   useEffect(() => {
     async function carregarImagem() {
@@ -36,10 +34,7 @@ export default function CityCard({ cidade }: CityCardProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.85}
-      onPress={() => {
-        addRecentCidade(cidade);
-        router.push({ pathname: '/detalhes-cidade', params: { id: cidade.id } });
-      }}
+      onPress={() => router.push({ pathname: '/detalhes-cidade', params: { id: cidade.id } })}
       style={[styles.card, { width: cardWidth, height: cardHeight, padding: cardPadding, marginLeft: r.scaleX(16) }]}
     >
       <Image
@@ -60,7 +55,7 @@ export default function CityCard({ cidade }: CityCardProps) {
         <Text style={[styles.description, { fontSize: r.font(12) }]} numberOfLines={2}>
           Descubra pontos turísticos, cultura local e experiências únicas.
         </Text>
-        <Text style={[styles.rating, { fontSize: r.font(12) }]}>⭐ {(cidade.avaliacao ?? 4.5).toFixed(1)}</Text>
+        <Text style={[styles.rating, { fontSize: r.font(12) }]}>⭐ {cidade.avaliacao.toFixed(1)}</Text>
       </View>
     </TouchableOpacity>
   );
