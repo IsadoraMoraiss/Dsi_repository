@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "brasilemfoco",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#009C3B"
@@ -36,7 +36,9 @@
           "photosPermission": "Permita escolher uma foto para exibir no seu perfil."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
