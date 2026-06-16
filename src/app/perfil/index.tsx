@@ -1,13 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
@@ -64,37 +64,48 @@ export default function PerfilMenuScreen() {
 
   return (
     <MainTabLayout activeTab="perfil">
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header — sem botao de voltar, e uma aba principal */}
-      <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
-        <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Perfil</Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + r.scaleY(96) }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Avatar + Name */}
-        <View style={styles.topRow}>
-          <View style={styles.avatar}>
-            {userData?.avatarUrl ? (
-              <Image source={{ uri: userData.avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <MaterialIcons name="person" size={r.scaleX(48)} color={Colors.textWhite} />
-            )}
-          </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Header — sem botao de voltar, e uma aba principal */}
+        <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
+          <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Perfil</Text>
         </View>
-        <Text style={[styles.name, { fontSize: r.font(22) }]}>{userData?.nome || 'Usuário'}</Text>
 
-        <View style={styles.divider} />
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + r.scaleY(96) }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Avatar + Name */}
+          <View style={styles.topRow}>
+            <View style={styles.avatar}>
+              {userData?.avatarUrl ? (
+                <Image source={{ uri: userData.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <MaterialIcons name="person" size={r.scaleX(48)} color={Colors.textWhite} />
+              )}
+            </View>
+          </View>
+          <Text style={[styles.name, { fontSize: r.font(22) }]}>{userData?.nome || 'Usuário'}</Text>
 
-        <MenuItem icon="person-outline" label="Meu Perfil" onPress={() => router.push('/perfil/meu-perfil')} />
-        <MenuItem icon="bookmark-border" label="Meus Roteiros" onPress={() => router.push('/perfil/roteiros-favoritos')} />
-        <MenuItem icon="star-border" label="Minhas Avaliações" onPress={() => router.push('/perfil/avaliacoes')} />
-        <MenuItem icon="auto-awesome" label="Preferências" onPress={() => router.push('/perfil/preferencias')} />
-        <MenuItem icon="logout" label="Sair da conta" onPress={handleLogout} />
-      </ScrollView>
-    </SafeAreaView>
+          <View style={styles.divider} />
+
+          <MenuItem icon="person-outline" label="Meu Perfil" onPress={() => router.push('/perfil/meu-perfil')} />
+          <MenuItem icon="bookmark-border" label="Roteiros Favoritos" onPress={() => router.push('/perfil/roteiros-favoritos')} />
+          <MenuItem icon="star-border" label="Minhas Avaliações" onPress={() => router.push('/perfil/avaliacoes')} />
+          <MenuItem
+            icon="event"
+            label="Minha Agenda"
+            onPress={() => router.push('/agenda')}
+          />
+
+          <MenuItem
+            icon="checklist"
+            label="Checklist"
+            onPress={() => router.push('/checklist')}
+          />
+          <MenuItem icon="auto-awesome" label="Preferências" onPress={() => router.push('/perfil/preferencias')} />
+          <MenuItem icon="logout" label="Sair da conta" onPress={handleLogout} />
+        </ScrollView>
+      </SafeAreaView>
     </MainTabLayout>
   );
 }
@@ -120,9 +131,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: Colors.primary,
-    overflow: 'hidden',
   },
-  avatarImage: { width: '100%', height: '100%' },
   name: {
     color: Colors.textWhite,
     fontWeight: '700',
@@ -136,4 +145,5 @@ const styles = StyleSheet.create({
   },
   menuIcon: { marginRight: 16 },
   menuLabel: { color: Colors.textWhite, fontWeight: '500' },
+  avatarImage: { width: '100%', height: '100%', borderRadius: 44 },
 });

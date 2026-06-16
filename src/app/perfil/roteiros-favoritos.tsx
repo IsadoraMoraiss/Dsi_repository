@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -11,51 +11,33 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
+import { Roteiro } from '../../data/mockRoteiros';
 import { useAuth } from '../../context/AuthContext';
-import { Cidade } from '../../data/mockCidades';
 import { listarRoteirosUsuario, UserRoteiro } from '../../services/roteiros';
-import {
-  corDoRoteiro,
-  distanciaExibidaRoteiro,
-  ehRoteiroCriadoPeloUsuario,
-  resolverCidadesDoRoteiro,
-} from '../../utils/roteiroUtils';
 import { useResponsive } from '../../utils/responsive';
 
-const todasCidadesJson = require('../../data/cidades.json') as Cidade[];
-
-type AbaMeusRoteiros = 'favoritos' | 'publicos' | 'privados';
-
-function FavoritoCard({ roteiro, onPress }: { roteiro: UserRoteiro; onPress: () => void }) {
+function FavoritoCard({ roteiro }: { roteiro: UserRoteiro | Roteiro }) {
   const r = useResponsive();
-  const cidadesStr = roteiro.cidades.join(' → ');
-  const cor = corDoRoteiro(roteiro);
-  const { detalhadas } = resolverCidadesDoRoteiro(roteiro, todasCidadesJson);
-  const km = distanciaExibidaRoteiro(roteiro, detalhadas);
-
+  const cidadesStr = (roteiro.cidades ?? []).join(' → ');
   return (
-    <TouchableOpacity style={[styles.favCard, { backgroundColor: cor }]} activeOpacity={0.86} onPress={onPress}>
+    <View style={[styles.favCard, { backgroundColor: (roteiro as any).cor ?? '#444' }]}>
       <View style={styles.favHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.favNome, { fontSize: r.font(20) }]}>{roteiro.nome}</Text>
           <View style={styles.favCidadesRow}>
             <MaterialIcons name="place" size={13} color="rgba(255,255,255,0.8)" />
-            <Text style={[styles.favCidades, { fontSize: r.font(13) }]} numberOfLines={2}>
-              {cidadesStr}
-            </Text>
+            <Text style={[styles.favCidades, { fontSize: r.font(13) }]}>{cidadesStr}</Text>
           </View>
         </View>
-        <MaterialIcons
-          name={roteiro.favoritado ? 'bookmark' : 'bookmark-border'}
-          size={24}
-          color="#FFFFFF"
-        />
+        <MaterialIcons name={(roteiro as any).favoritado ? 'bookmark' : 'bookmark-border'} size={24} color="#FFFFFF" />
       </View>
       <View style={styles.favFooter}>
-        <Text style={[styles.favKm, { fontSize: r.font(18) }]}>{km} Km</Text>
-        <Text style={[styles.verDetalhesText, { fontSize: r.font(12) }]}>Ver detalhes ▶</Text>
+        <Text style={[styles.favKm, { fontSize: r.font(18) }]}>{(roteiro as any).distanciaKm ?? 0} Km</Text>
+        <TouchableOpacity style={styles.verDetalhesBtn}>
+          <Text style={[styles.verDetalhesText, { fontSize: r.font(12) }]}>Ver detalhes ▶</Text>
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -63,96 +45,51 @@ export default function RoteirosFavoritosScreen() {
   const router = useRouter();
   const r = useResponsive();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
   const [busca, setBusca] = useState('');
-  const [abaAtiva, setAbaAtiva] = useState<AbaMeusRoteiros>('favoritos');
-  const [meusRoteiros, setMeusRoteiros] = useState<UserRoteiro[]>([]);
+  const { user } = useAuth();
+  const [roteiros, setRoteiros] = useState<UserRoteiro[]>([]);
   const [carregando, setCarregando] = useState(false);
+  const [filtro, setFiltro] = useState<'publicos' | 'privados' | 'salvos'>('publicos');
 
-  useEffect(() => {
+  React.useEffect(() => {
     let ativo = true;
-
     async function carregar() {
-      if (!user) {
-        setMeusRoteiros([]);
-        return;
-      }
-
+      if (!user) { if (ativo) setRoteiros([]); return; }
       setCarregando(true);
       try {
-        const roteiros = await listarRoteirosUsuario(user.uid, todasCidadesJson);
-        if (ativo) setMeusRoteiros(roteiros);
+        const lista = await listarRoteirosUsuario(user.uid, require('../../data/cidades.json'));
+        if (ativo) setRoteiros(lista);
       } catch (error) {
-        console.error('[meus-roteiros]', error);
-        if (ativo) setMeusRoteiros([]);
-      } finally {
-        if (ativo) setCarregando(false);
-      }
+        console.error('[meus-roteiros] erro ao carregar:', error);
+        if (ativo) setRoteiros([]);
+      } finally { if (ativo) setCarregando(false); }
     }
-
     carregar();
-    return () => {
-      ativo = false;
-    };
-  }, [user]);
+    return () => { ativo = false; };
+  }, [user?.uid]);
 
-  const favoritos = useMemo(
-    () => meusRoteiros.filter((r) => r.favoritado === true),
-    [meusRoteiros],
-  );
-  const publicos = useMemo(
-    () => meusRoteiros.filter((r) => r.privado === false),
-    [meusRoteiros],
-  );
-  const privados = useMemo(
-    () => meusRoteiros.filter((r) => r.privado === true && ehRoteiroCriadoPeloUsuario(r)),
-    [meusRoteiros],
-  );
-
-  const listaAba =
-    abaAtiva === 'favoritos' ? favoritos : abaAtiva === 'publicos' ? publicos : privados;
-
-  const filtrados = busca.trim()
-    ? listaAba.filter((rt) => rt.nome.toLowerCase().includes(busca.toLowerCase()))
-    : listaAba;
-
-  const emptyMessages: Record<AbaMeusRoteiros, string> = {
-    favoritos: 'Você ainda não favoritou nenhum roteiro.',
-    publicos: 'Você não tem roteiros públicos.',
-    privados: 'Você não tem roteiros privados.',
-  };
-
-  const abas: { id: AbaMeusRoteiros; label: string }[] = [
-    { id: 'favoritos', label: 'Favoritos' },
-    { id: 'publicos', label: 'Roteiros Públicos' },
-    { id: 'privados', label: 'Roteiros Privados' },
-  ];
+  const filtrados = (busca.trim()
+    ? roteiros.filter((rt) => rt.nome.toLowerCase().includes(busca.toLowerCase()))
+    : roteiros
+  ).filter((rt) => {
+    const ehSalvo = Boolean(rt.sourceRoteiroId || rt.origemComunidade);
+    if (filtro === 'publicos') return rt.privado === false && !ehSalvo;
+    if (filtro === 'privados') return rt.privado === true && !ehSalvo;
+    // salvos: roteiros criados pelo sistema/externos salvos como cópia na conta do usuário
+    return ehSalvo;
+  });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Meus Roteiros</Text>
+        <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Roteiros Favoritos</Text>
       </View>
 
-      <View style={styles.tabsRow}>
-        {abas.map((aba) => {
-          const active = abaAtiva === aba.id;
-          return (
-            <TouchableOpacity
-              key={aba.id}
-              style={[styles.tabBtn, active && styles.tabBtnActive]}
-              onPress={() => setAbaAtiva(aba.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{aba.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
+      {/* Search */}
       <View style={styles.searchWrapper}>
         <TextInput
           style={[styles.searchInput, { fontSize: r.font(14) }]}
@@ -167,20 +104,31 @@ export default function RoteirosFavoritosScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.meusRoteirosBanner}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.bannerTitle, { fontSize: r.font(20) }]}>Meus Roteiros</Text>
+            <Text style={[styles.bannerSub, { fontSize: r.font(14) }]}>Seus roteiros públicos e privados</Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+          <TouchableOpacity onPress={() => setFiltro('publicos')} style={[styles.filterBtn, filtro === 'publicos' && styles.filterBtnActive]}>
+            <Text style={styles.filterText}>Públicos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFiltro('privados')} style={[styles.filterBtn, filtro === 'privados' && styles.filterBtnActive]}>
+            <Text style={styles.filterText}>Privados</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setFiltro('salvos')} style={[styles.filterBtn, filtro === 'salvos' && styles.filterBtnActive]}>
+            <Text style={styles.filterText}>Salvos</Text>
+          </TouchableOpacity>
+        </View>
+
         {carregando ? (
-          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando roteiros...</Text>
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
         ) : filtrados.length > 0 ? (
-          filtrados.map((rt) => (
-            <FavoritoCard
-              key={rt.id}
-              roteiro={rt}
-              onPress={() =>
-                router.push({ pathname: '/roteiro-detalhes', params: { id: rt.id, origem: 'usuario' } })
-              }
-            />
-          ))
+          filtrados.map((rt) => <FavoritoCard key={rt.id} roteiro={rt} />)
         ) : (
-          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>{emptyMessages[abaAtiva]}</Text>
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro encontrado.</Text>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -193,34 +141,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   backBtn: { marginRight: 12 },
   headerTitle: { color: Colors.textWhite, fontWeight: '700' },
-  tabsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  tabBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  tabBtnActive: {
-    backgroundColor: Colors.primary,
-  },
-  tabText: {
-    color: Colors.textGray,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
   searchWrapper: { paddingHorizontal: 20, marginBottom: 16 },
   searchInput: {
     backgroundColor: Colors.inputBackground,
@@ -230,7 +154,17 @@ const styles = StyleSheet.create({
     color: Colors.textDark,
   },
   content: { paddingHorizontal: 20 },
-  emptyText: { color: Colors.textGray, textAlign: 'center', marginTop: 8 },
+  meusRoteirosBanner: {
+    backgroundColor: '#2D2B6B',
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 16,
+  },
+  bannerTitle: { color: Colors.textWhite, fontWeight: '700', marginBottom: 6 },
+  bannerSub: { color: Colors.textWhite, opacity: 0.7 },
+  bannerLink: { color: 'rgba(255,255,255,0.6)' },
   favCard: {
     borderRadius: 16,
     padding: 18,
@@ -242,5 +176,19 @@ const styles = StyleSheet.create({
   favCidades: { color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   favFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   favKm: { color: '#FFFFFF', fontWeight: '700' },
+  verDetalhesBtn: {},
   verDetalhesText: { color: 'rgba(255,255,255,0.8)' },
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  filterBtnActive: {
+    backgroundColor: 'rgba(59,130,246,0.15)',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  filterText: { color: Colors.textWhite, fontWeight: '700' },
+  emptyText: { color: Colors.textGray, marginBottom: 8 },
 });
