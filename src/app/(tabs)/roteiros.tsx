@@ -1,7 +1,7 @@
 /**
- * Roteiros.tsx
+ * (tabs)/roteiros.tsx
  *
- * Tela principal de roteiros utilizada pela navegação de tabs web/native.
+ * Tela de Roteiros — aba gerenciada pelo Tab Navigator nativo.
  */
 
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,13 +17,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../constants/Colors';
-import SearchBar from '../components/ui/SearchBar';
-import MainTabLayout from '../components/layout/MainTabLayout';
-import { roteirosRecomendados, Roteiro } from '../data/mockRoteiros';
-import { useAuth } from '../context/AuthContext';
-import { rankRoteirosByPreferences, UserPreferences } from '../utils/preferences';
-import { useResponsive } from '../utils/responsive';
+import { Colors } from '../../constants/Colors';
+import SearchBar from '../../components/ui/SearchBar';
+import { roteirosRecomendados, Roteiro } from '../../data/mockRoteiros';
+import { useAuth } from '../../context/AuthContext';
+import { rankRoteirosByPreferences, UserPreferences } from '../../utils/preferences';
+import { useResponsive } from '../../utils/responsive';
 import {
   buscarCopiaSalvaUsuario,
   buscarUltimosRoteiroVistos,
@@ -32,18 +31,21 @@ import {
   registrarVisualizacaoRoteiro,
   toggleFavoritarRoteiro,
   UserRoteiro,
-} from '../services/roteiros';
-import { imagemExibicaoRoteiro } from '../utils/roteiroImagem';
+} from '../../services/roteiros';
+import { imagemExibicaoRoteiro } from '../../utils/roteiroImagem';
 import {
   corDoRoteiro,
   distanciaExibidaRoteiro,
   ehRoteiroDaComunidade,
   resolverCidadesDoRoteiro,
-} from '../utils/roteiroUtils';
-import { Cidade } from '../data/mockCidades';
+} from '../../utils/roteiroUtils';
+import { Cidade } from '../../data/mockCidades';
 
-const todasCidadesJson = require('../data/cidades.json') as Cidade[];
+const todasCidadesJson = require('../../data/cidades.json') as Cidade[];
 
+// ---------------------------------------------------------------------------
+// Componente de cartão de roteiro
+// ---------------------------------------------------------------------------
 function RoteiroCard({
   roteiro,
   onNavigate,
@@ -128,18 +130,18 @@ function RoteiroCard({
         </Text>
         <View style={styles.roteiroBadges}>
           <View style={[styles.badge, ehCatalogo && styles.badgeCatalogo]}>
-            <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}> 
+            <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}>
               {roteiro.duracao.toUpperCase()}
             </Text>
           </View>
           <View style={[styles.badge, ehCatalogo && styles.badgeCatalogo]}>
-            <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}> 
+            <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}>
               {roteiro.tipo.toUpperCase()}
             </Text>
           </View>
           {km > 0 && (
             <View style={[styles.badge, ehCatalogo && styles.badgeCatalogo]}>
-              <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}> 
+              <Text style={[styles.badgeText, { fontSize: r.font(11), color: ehCatalogo ? Colors.textDark : '#FFFFFF' }]}>
                 {km} KM
               </Text>
             </View>
@@ -163,6 +165,9 @@ function RoteiroCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Tela de Roteiros
+// ---------------------------------------------------------------------------
 export default function RoteirosScreen() {
   const router = useRouter();
   const { user, userData } = useAuth();
@@ -189,6 +194,8 @@ export default function RoteirosScreen() {
     carregarEmAlta();
     return () => { ativo = false; };
   }, [user?.uid]);
+
+  
 
   useEffect(() => {
     let ativo = true;
@@ -237,57 +244,57 @@ export default function RoteirosScreen() {
   const filtradosUltimos = filtrarPorBusca(ultimosVistos);
 
   return (
-    <MainTabLayout activeTab="roteiro">
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={{ paddingHorizontal: 20, paddingTop: r.scaleY(12), paddingBottom: 8 }}>
-          <Text style={{ color: Colors.textWhite, fontSize: r.font(20), fontWeight: '700' }}>Roteiros</Text>
-        </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={{ paddingHorizontal: 20, paddingTop: r.scaleY(12), paddingBottom: 8 }}>
+        <Text style={{ color: Colors.textWhite, fontSize: r.font(20), fontWeight: '700' }}>Roteiros</Text>
+      </View>
 
-        <View style={[styles.searchWrapper, { paddingTop: r.scaleY(8) }]}> 
-          <SearchBar
-            value={busca}
-            onChangeText={setBusca}
-            placeholder="Pesquisar roteiro..."
-          />
-        </View>
+      <View style={[styles.searchWrapper, { paddingTop: r.scaleY(8) }]}>
+        <SearchBar
+          value={busca}
+          onChangeText={setBusca}
+          placeholder="Pesquisar roteiro..."
+        />
+      </View>
 
-        <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.sectionTitle, { fontSize: r.font(18) }]}>Roteiros em Alta</Text>
-          {carregandoEmAlta ? (
-            <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
-          ) : filtradosEmAlta.length > 0 ? (
-            filtradosEmAlta.map((rt) => (
-              <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} onFavoritoChange={() => {}} />
-            ))
-          ) : (
-            <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro em destaque ainda.</Text>
-          )}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.sectionTitle, { fontSize: r.font(18) }]}>Roteiros em Alta</Text>
+        {carregandoEmAlta ? (
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
+        ) : filtradosEmAlta.length > 0 ? (
+          filtradosEmAlta.map((rt) => (
+            <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} onFavoritoChange={() => {}} />
+          ))
+        ) : (
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro em destaque ainda.</Text>
+        )}
 
-          <Text style={[styles.sectionTitle, { fontSize: r.font(18), marginTop: 20 }]}>Roteiros Recomendados</Text>
-          {filtradosRecomendados.length > 0 ? (
-            filtradosRecomendados.map((rt) => (
-              <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} />
-            ))
-          ) : (
-            <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro recomendado alinhado com suas preferências.</Text>
-          )}
+        {/* seção 'Roteiros Públicos' removida por requisito */}
 
-          <Text style={[styles.sectionTitle, { fontSize: r.font(18), marginTop: 20 }]}>Últimos Visualizados</Text>
-          {carregandoUltimos ? (
-            <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
-          ) : filtradosUltimos.length > 0 ? (
-            filtradosUltimos.map((rt) => (
-              <RoteiroCard key={`${rt.id}-ultimo`} roteiro={rt} origem={rt.uid ? 'usuario' : 'recomendado'} onNavigate={handleNavigateRoteiro} />
-            ))
-          ) : (
-            <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro visualizado ainda.</Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </MainTabLayout>
+        <Text style={[styles.sectionTitle, { fontSize: r.font(18), marginTop: 20 }]}>Roteiros Recomendados</Text>
+        {filtradosRecomendados.length > 0 ? (
+          filtradosRecomendados.map((rt) => (
+            <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} />
+          ))
+        ) : (
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro recomendado alinhado com suas preferências.</Text>
+        )}
+
+        <Text style={[styles.sectionTitle, { fontSize: r.font(18), marginTop: 20 }]}>Últimos Visualizados</Text>
+        {carregandoUltimos ? (
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
+        ) : filtradosUltimos.length > 0 ? (
+          filtradosUltimos.map((rt) => (
+            <RoteiroCard key={`${rt.id}-ultimo`} roteiro={rt} origem={rt.uid ? 'usuario' : 'recomendado'} onNavigate={handleNavigateRoteiro} />
+          ))
+        ) : (
+          <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro visualizado ainda.</Text>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -303,7 +310,6 @@ const styles = StyleSheet.create({
     ...require('react-native').Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 },
       android: { elevation: 3 },
-      web: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 },
     }),
   },
   roteiroImg: { width: 72, height: 72, borderRadius: 12, marginRight: 12 },
