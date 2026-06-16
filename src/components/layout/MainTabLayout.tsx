@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import BottomNav, { NavKey } from '../home/BottomNav';
@@ -40,6 +40,11 @@ export default function MainTabLayout({ children, activeTab }: MainTabLayoutProp
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.background },
+  // On web the root is transparent so the body gradient shows through the glassmorphism BottomNav.
+  // On native it keeps the solid background.
+  root: {
+    flex: 1,
+    backgroundColor: Platform.OS === 'web' ? 'transparent' : Colors.background,
+  },
   content: { flex: 1 },
 });
