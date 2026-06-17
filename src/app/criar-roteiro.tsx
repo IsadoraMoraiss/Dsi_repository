@@ -2,7 +2,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +13,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../constants/Colors';
 import { Cidade } from '../data/mockCidades';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
+import { uploadImageToSupabaseBucket, isSupabaseConfigured as isSupabaseStorageConfigured } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { criarRoteiroUsuario } from '../services/roteiros';
 import { useResponsive } from '../utils/responsive';
@@ -79,7 +83,7 @@ export default function CriarRoteiroScreen() {
   const router = useRouter();
   const r = useResponsive();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
 
   const [nome, setNome] = useState('');
   const [cidadesSelecionadas, setCidadesSelecionadas] = useState<string[]>([]);
@@ -87,6 +91,9 @@ export default function CriarRoteiroScreen() {
   const [observacoes, setObservacoes] = useState('');
   const [corSelecionada, setCorSelecionada] = useState(CORES[0]);
   const [privado, setPrivado] = useState(true);
+  const [coverLocalUri, setCoverLocalUri] = useState<string | null>(null);
+  const [coverBase64, setCoverBase64] = useState<string | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   const todasCidades = useMemo(
@@ -193,6 +200,38 @@ export default function CriarRoteiroScreen() {
     );
   }
 
+  async function handleEscolherCapa() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permissão necessária', 'Permita acesso às fotos para escolher uma imagem de capa.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (result.canceled) return;
+    const uri = result.assets[0]?.uri;
+    const base64 = result.assets[0]?.base64 ?? null;
+    if (!uri || !base64) {
+      Alert.alert('Erro', 'Não foi possível carregar a imagem selecionada.');
+      return;
+    }
+
+    setCoverLocalUri(uri);
+    setCoverBase64(base64);
+  }
+
+  function handleRemoverCapa() {
+    setCoverLocalUri(null);
+    setCoverBase64(null);
+  }
+
   async function handleSalvar() {
     const nomeTrim = nome.trim();
     if (!nomeTrim) {
@@ -209,6 +248,33 @@ export default function CriarRoteiroScreen() {
       return;
     }
 
+    let imagemUrl: string | undefined;
+    if (coverLocalUri) {
+      if (!isSupabaseStorageConfigured) {
+        Alert.alert('Supabase não configurado', 'A capa só pode ser enviada se SUPABASE estiver configurado no .env.');
+        return;
+      }
+      if (!coverBase64) {
+        Alert.alert('Erro', 'Não foi possível obter os dados da imagem selecionada.');
+        return;
+      }
+      setUploadingCover(true);
+      try {
+        imagemUrl = await uploadImageToSupabaseBucket(
+          'foto-capa-roteiro',
+          `roteiros/${user.uid}/${Date.now()}-${nomeTrim.replace(/[^a-zA-Z0-9]/g, '-')}.jpg`,
+          coverBase64,
+        );
+      } catch (error: any) {
+        console.error('[upload-capa]', error);
+        Alert.alert('Erro', 'Não foi possível enviar a capa. Tente novamente.');
+        setUploadingCover(false);
+        return;
+      } finally {
+        setUploadingCover(false);
+      }
+    }
+
     setSalvando(true);
     try {
       await criarRoteiroUsuario({
@@ -223,10 +289,12 @@ export default function CriarRoteiroScreen() {
         observacoes: observacoes.trim(),
         cor: corSelecionada,
         privado,
+        autorNome: userData?.nome ?? '',
         distanciaKm: distanciaTotalKm,
         cidadesDetalhadas: cidadesSelecionadasDetalhadas,
+        imagemUrl,
       });
-      router.replace('/roteiros');
+      router.replace('/(tabs)/roteiros' as any);
     } catch (error) {
       console.error('[criar-roteiro]', error);
       Alert.alert('Erro', 'Não foi possível salvar o roteiro. Tente novamente.');
@@ -239,7 +307,7 @@ export default function CriarRoteiroScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
-        <TouchableOpacity onPress={() => router.replace('/roteiros')} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/roteiros' as any)} style={styles.backBtn}>
           <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { fontSize: r.font(18) }]}>CRIAR ROTEIRO</Text>
@@ -262,6 +330,31 @@ export default function CriarRoteiroScreen() {
           value={nome}
           onChangeText={setNome}
         />
+
+        {/* Capa do Roteiro */}
+        <Text style={[styles.label, { fontSize: r.font(15), marginTop: 20 }]}>Capa do Roteiro</Text>
+        <TouchableOpacity style={styles.coverPicker} onPress={handleEscolherCapa} activeOpacity={0.8}>
+          {coverLocalUri ? (
+            <Image source={{ uri: coverLocalUri }} style={styles.coverPreview} />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <MaterialIcons name="photo" size={22} color={Colors.textGray} />
+              <Text style={[styles.coverPlaceholderText, { fontSize: r.font(14) }]}>Escolher imagem de capa</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        {coverLocalUri && !uploadingCover && (
+          <TouchableOpacity style={styles.coverRemoveBtn} onPress={handleRemoverCapa} activeOpacity={0.8}>
+            <MaterialIcons name="delete" size={18} color={Colors.textWhite} />
+            <Text style={[styles.coverRemoveText, { fontSize: r.font(13) }]}>Remover capa</Text>
+          </TouchableOpacity>
+        )}
+        {uploadingCover && (
+          <View style={styles.uploadingCoverRow}>
+            <ActivityIndicator color={Colors.primary} />
+            <Text style={[styles.uploadingCoverText, { fontSize: r.font(13) }]}>Enviando capa...</Text>
+          </View>
+        )}
 
         {/* Cidades — selecao a partir de mockCidades */}
         <Text style={[styles.label, { fontSize: r.font(15), marginTop: 20 }]}>
@@ -465,7 +558,7 @@ export default function CriarRoteiroScreen() {
 
       {/* Footer buttons */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity style={styles.descartarBtn} onPress={() => router.replace('/roteiros')}>
+        <TouchableOpacity style={styles.descartarBtn} onPress={() => router.replace('/(tabs)/roteiros' as any)}>
           <Text style={[styles.descartarText, { fontSize: r.font(15) }]}>Descartar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.salvarBtn, salvando && { opacity: 0.6 }]} onPress={handleSalvar} disabled={salvando}>
@@ -685,6 +778,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   descartarText: { color: Colors.textWhite, fontWeight: '600' },
+  coverPicker: {
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  coverPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  coverPlaceholderText: {
+    color: Colors.textGray,
+    fontWeight: '600',
+  },
+  coverRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 12,
+  },
+  coverRemoveText: {
+    color: Colors.textWhite,
+    fontWeight: '700',
+  },
+  uploadingCoverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 18,
+  },
+  uploadingCoverText: { color: Colors.textGray },
   salvarBtn: {
     flex: 1,
     backgroundColor: Colors.primary,

@@ -32,8 +32,13 @@ import {
   resolverCidadesDoRoteiro,
 } from '../utils/roteiroUtils';
 import { db } from './firebase';
+import { buscarNomeUsuario } from './usuarios';
 
 const ULTIMOS_ROTEIROS_KEY = 'ultimosRoteirosVistos';
+// When a uid is provided, store per-user to avoid leaking viewed items between accounts
+function ultimosKeyForUid(uid?: string) {
+  return uid ? `${ULTIMOS_ROTEIROS_KEY}:${uid}` : ULTIMOS_ROTEIROS_KEY;
+}
 const MAX_ULTIMOS_ROTEIROS = 10;
 
 export type UserRoteiro = Roteiro & {
@@ -46,7 +51,10 @@ export type UserRoteiro = Roteiro & {
   descricao?: string;
   cidadeIds?: string[];
   autorNome?: string;
+  sourceRoteiroId?: string;
   temas?: string[];
+  favoritosCount?: number;
+  visualizacoesCount?: number;
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -95,6 +103,7 @@ function roteiroFromDoc(id: string, data: Record<string, any>): UserRoteiro {
     observacoes: data.observacoes,
     descricao: data.descricao,
     autorNome: data.autorNome,
+    sourceRoteiroId: data.sourceRoteiroId,
     temas: Array.isArray(data.temas) ? data.temas : [],
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -136,6 +145,7 @@ function encontrarRoteiroEquivalente(roteiros: UserRoteiro[], roteiro: Roteiro) 
   return roteiros.find(
     (r) =>
       r.id === roteiro.id ||
+      r.sourceRoteiroId === roteiro.id ||
       chaveConteudoRoteiro(r) === chaveConteudoRoteiro(roteiro) ||
       mesmoRoteiroConteudo(r, roteiro),
   );
@@ -215,11 +225,51 @@ export async function listarRoteirosEmAlta(limitNum = 5): Promise<UserRoteiro[]>
   }
 }
 
-export async function registrarVisualizacaoRoteiro(roteiroId: string): Promise<void> {
-  const raw = await AsyncStorage.getItem(ULTIMOS_ROTEIROS_KEY);
+export async function listarRoteirosPublicos(limitNum = 5): Promise<UserRoteiro[]> {
+  if (!db) return [];
+
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'roteiros'),
+        where('privado', '==', false),
+        orderBy('createdAt', 'desc'),
+        limit(limitNum),
+      ),
+    );
+    return snap.docs.map((docSnap) => roteiroFromDoc(docSnap.id, docSnap.data()));
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code;
+    if (code !== 'failed-precondition') {
+      throw error;
+    }
+
+    const snap = await getDocs(query(collection(db, 'roteiros'), where('privado', '==', false)));
+    return snap.docs
+      .map((docSnap) => roteiroFromDoc(docSnap.id, docSnap.data()))
+      .sort((a, b) => {
+        const getTime = (value: unknown) => {
+          if (value instanceof Date) return value.getTime();
+          if (value && typeof value === 'object' && 'toMillis' in value && typeof (value as any).toMillis === 'function') {
+            return (value as any).toMillis();
+          }
+          return Number(value ?? 0);
+        };
+
+        const aTime = getTime(a.createdAt);
+        const bTime = getTime(b.createdAt);
+        return bTime - aTime;
+      })
+      .slice(0, limitNum);
+  }
+}
+
+export async function registrarVisualizacaoRoteiro(roteiroId: string, uid?: string): Promise<void> {
+  const key = ultimosKeyForUid(uid);
+  const raw = await AsyncStorage.getItem(key);
   const ids: string[] = raw ? JSON.parse(raw) : [];
   const next = [roteiroId, ...ids.filter((id) => id !== roteiroId)].slice(0, MAX_ULTIMOS_ROTEIROS);
-  await AsyncStorage.setItem(ULTIMOS_ROTEIROS_KEY, JSON.stringify(next));
+  await AsyncStorage.setItem(key, JSON.stringify(next));
 
   if (!db || !isProvavelIdFirestore(roteiroId)) return;
 
@@ -236,11 +286,12 @@ export async function registrarVisualizacaoRoteiro(roteiroId: string): Promise<v
 }
 
 export async function buscarUltimosRoteiroVistos(uid?: string): Promise<UserRoteiro[]> {
-  const raw = await AsyncStorage.getItem(ULTIMOS_ROTEIROS_KEY);
+  const key = ultimosKeyForUid(uid);
+  const raw = await AsyncStorage.getItem(key);
   const ids: string[] = raw ? JSON.parse(raw) : [];
   if (!ids.length || !db) return [];
-
   const roteiros: UserRoteiro[] = [];
+  let changed = false;
   for (const id of ids) {
     if (!isProvavelIdFirestore(id)) {
       const mock = roteirosRecomendados.find((r) => r.id === id);
@@ -249,7 +300,6 @@ export async function buscarUltimosRoteiroVistos(uid?: string): Promise<UserRote
       }
       continue;
     }
-
     try {
       const snap = await getDoc(doc(db, 'roteiros', id));
       if (!snap.exists()) continue;
@@ -257,8 +307,28 @@ export async function buscarUltimosRoteiroVistos(uid?: string): Promise<UserRote
       const roteiro = roteiroFromDoc(snap.id, snap.data());
       const podeVer = roteiro.uid === uid || roteiro.privado === false;
       if (podeVer) roteiros.push(roteiro);
-    } catch (error) {
+      else {
+        // If the current user cannot view it, remove from local history
+        changed = true;
+      }
+    } catch (error: any) {
+      // Permissions error — remove from local history to avoid leaking other-account items
+      const msg = (error && (error.message || error.code)) || String(error);
       console.warn('[roteiros] Erro ao buscar roteiro visto:', id, error);
+      if (/permission|insufficient|missing/i.test(msg)) {
+        changed = true;
+      }
+      continue;
+    }
+  }
+
+  if (changed) {
+    // persist cleaned list (only keep ids that correspond to what we returned)
+    try {
+      const saved = roteiros.map((r) => r.id);
+      await AsyncStorage.setItem(key, JSON.stringify(saved));
+    } catch (e) {
+      // ignore
     }
   }
   return roteiros;
@@ -288,6 +358,12 @@ export async function toggleFavoritarRoteiro(uid: string, roteiro: Roteiro): Pro
 
     if (!novoFavorito && ehCopiaCatalogo) {
       await deleteDoc(doc(db, 'roteiros', copiaExistente.id));
+      if (copiaExistente.sourceRoteiroId && isProvavelIdFirestore(copiaExistente.sourceRoteiroId)) {
+        await updateDoc(doc(db, 'roteiros', copiaExistente.sourceRoteiroId), {
+          favoritosCount: increment(-1),
+          updatedAt: serverTimestamp(),
+        });
+      }
       return false;
     }
 
@@ -298,6 +374,7 @@ export async function toggleFavoritarRoteiro(uid: string, roteiro: Roteiro): Pro
     return novoFavorito;
   }
 
+  let roteiroPublicoOriginal: UserRoteiro | null = null;
   try {
     const snap = await getDoc(doc(db, 'roteiros', roteiro.id));
     if (snap.exists()) {
@@ -309,6 +386,9 @@ export async function toggleFavoritarRoteiro(uid: string, roteiro: Roteiro): Pro
           updatedAt: serverTimestamp(),
         });
         return novoFavorito;
+      }
+      if (data.privado === false) {
+        roteiroPublicoOriginal = data;
       }
     }
   } catch {
@@ -360,11 +440,20 @@ export async function toggleFavoritarRoteiro(uid: string, roteiro: Roteiro): Pro
     automatico: false,
     favoritado: true,
     origemComunidade: true,
+    sourceRoteiroId: roteiroPublicoOriginal?.id ?? null,
+    autorNome: (roteiro as UserRoteiro).autorNome ?? roteiroPublicoOriginal?.autorNome ?? '',
     favoritosCount: 0,
     visualizacoesCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  if (roteiroPublicoOriginal) {
+    await updateDoc(doc(db, 'roteiros', roteiroPublicoOriginal.id), {
+      favoritosCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   return true;
 }
@@ -428,6 +517,7 @@ export async function criarRoteiroUsuario({
   temas,
   cor,
   privado,
+  autorNome,
   automatico = false,
   distanciaKm,
   imagemUrl,
@@ -446,6 +536,7 @@ export async function criarRoteiroUsuario({
   temas?: string[];
   cor: string;
   privado: boolean;
+  autorNome?: string;
   automatico?: boolean;
   distanciaKm?: number;
   imagemUrl?: string;
@@ -478,6 +569,7 @@ export async function criarRoteiroUsuario({
     cor,
     imagemUrl: capa,
     privado,
+    autorNome: autorNome ?? '',
     automatico,
     favoritado: false,
     favoritosCount: 0,
@@ -502,6 +594,7 @@ export async function atualizarRoteiroUsuario(
     temas,
     cor,
     distanciaKm,
+    imagemUrl,
   }: {
     nome?: string;
     cidades?: string[];
@@ -515,6 +608,7 @@ export async function atualizarRoteiroUsuario(
     temas?: string[];
     cor?: string;
     distanciaKm?: number;
+    imagemUrl?: string;
   }
 ) {
   if (!db) throw new Error('Firebase nao configurado.');
@@ -535,6 +629,7 @@ export async function atualizarRoteiroUsuario(
   if (temas !== undefined) updates.temas = temas;
   if (cor !== undefined) updates.cor = cor;
   if (distanciaKm !== undefined) updates.distanciaKm = distanciaKm;
+  if (imagemUrl !== undefined) updates.imagemUrl = imagemUrl;
 
   await updateDoc(doc(db, 'roteiros', roteiroId), updates);
 }
@@ -574,6 +669,7 @@ export async function adicionarRoteiroRecomendadoAoUsuario(
       imagemUrl: roteiro.imagemUrl ?? existente.imagemUrl,
       favoritado: true,
       origemComunidade: true,
+      sourceRoteiroId: existente.sourceRoteiroId ?? (isProvavelIdFirestore(roteiro.id) ? roteiro.id : null),
       updatedAt: serverTimestamp(),
     });
     return { id: existente.id, jaExistia: true };
@@ -617,11 +713,20 @@ export async function adicionarRoteiroRecomendadoAoUsuario(
     automatico: false,
     favoritado: true,
     origemComunidade: true,
+    sourceRoteiroId: isProvavelIdFirestore(roteiro.id) ? roteiro.id : null,
+    autorNome: roteiro.autorNome ?? '',
     favoritosCount: 0,
     visualizacoesCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  if (isProvavelIdFirestore(roteiro.id)) {
+    await updateDoc(doc(db, 'roteiros', roteiro.id), {
+      favoritosCount: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   return { id: ref.id, jaExistia: false };
 }
@@ -630,6 +735,13 @@ export async function removerRoteiroSalvoComunidade(uid: string, roteiro: Roteir
   const copia = await buscarCopiaSalvaUsuario(uid, roteiro);
   if (!copia) return false;
   await deletarRoteiroUsuario(copia.id);
+  const sourceId = copia.sourceRoteiroId ?? (isProvavelIdFirestore(roteiro.id) ? roteiro.id : undefined);
+  if (sourceId && db) {
+    await updateDoc(doc(db, 'roteiros', sourceId), {
+      favoritosCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+  }
   return true;
 }
 
@@ -663,13 +775,35 @@ export async function enriquecerRoteiroUsuario(
     });
   }
 
+  // Resolve o nome do criador: se for roteiro de comunidade, usa label fixo;
+  // se for roteiro de usuário sem autorNome salvo (dados legados), busca no Firestore.
+  let autorNome: string;
+  if (ehRoteiroDaComunidade(roteiro)) {
+    autorNome = 'Equipe do Brasil em Foco';
+  } else if (roteiro.autorNome) {
+    autorNome = roteiro.autorNome;
+  } else if (roteiro.uid) {
+    const nomeFetched = await buscarNomeUsuario(roteiro.uid);
+    autorNome = nomeFetched || 'Membro da Comunidade';
+    // Persiste o nome para evitar buscas futuras
+    if (nomeFetched && isProvavelIdFirestore(roteiro.id)) {
+      try {
+        await updateDoc(doc(db!, 'roteiros', roteiro.id), { autorNome: nomeFetched });
+      } catch {
+        // silencia erro de permissão (roteiro público de outro usuário)
+      }
+    }
+  } else {
+    autorNome = 'Membro da Comunidade';
+  }
+
   return {
     ...roteiro,
     distanciaKm,
     cidadeIds,
     cor,
     descricao: roteiro.descricao || mock?.descricao,
-    autorNome: ehRoteiroDaComunidade(roteiro) ? 'Brasil em Foco' : roteiro.autorNome,
+    autorNome,
   };
 }
 

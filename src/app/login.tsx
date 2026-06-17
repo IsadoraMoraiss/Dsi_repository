@@ -3,9 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ActivityIndicator, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
-import { garantirPerfilUsuario } from '../services/usuarios';
 import AuthLinkAction from '../components/auth/components/AuthLinkAction';
 import AuthScreenLayout from '../components/auth/components/AuthScreenLayout';
 import FormField from '../components/auth/components/FormField';
@@ -92,14 +91,29 @@ export default function LoginScreen() {
       const userRef = doc(db, 'usuarios', user.uid);
       const snap = await getDoc(userRef);
 
-      let preferenciasConcluidas = false;
+      let docData: any = {};
       if (snap.exists()) {
-        const data = snap.data() as { preferenciasConcluidas?: boolean };
-        preferenciasConcluidas = data.preferenciasConcluidas === true;
+        docData = snap.data();
+      } else {
+        docData = {
+          nome: user.displayName || '',
+          email: user.email || emailTrim,
+          createdAt: new Date().toISOString(),
+          preferenciasConcluidas: false,
+          preferencias: {},
+          emailVerificado: false,
+        };
+        await setDoc(userRef, docData);
       }
-      await garantirPerfilUsuario(user, { email: user.email || emailTrim });
 
-      if (preferenciasConcluidas) {
+      // Bloqueia o acesso se o e-mail ainda não foi verificado (agora usando a flag do Firestore)
+      if (docData.emailVerificado === false) {
+        showToast('Verifique seu e-mail antes de entrar.');
+        setTimeout(() => router.replace({ pathname: '/verificacao', params: { email: emailTrim } }), 1500);
+        return;
+      }
+
+      if (docData.preferenciasConcluidas) {
         router.replace('/home');
       } else {
         router.replace('/perfil/preferencias');
@@ -111,22 +125,16 @@ export default function LoginScreen() {
 
       switch (error.code) {
         case 'auth/invalid-credential':
-          mensagem = 'E-mail ou senha inválidos.';
-          usarToast = true;
-          break;
         case 'auth/user-not-found':
-          mensagem = 'Usuário não encontrado.';
-          usarToast = true;
-          break;
         case 'auth/wrong-password':
-          mensagem = 'Senha incorreta.';
+          mensagem = 'E-mail ou senha incorretos.';
           usarToast = true;
           break;
         case 'auth/invalid-email':
           mensagem = 'Informe um e-mail válido.';
           break;
         case 'auth/network-request-failed':
-          mensagem = 'Falha de conexão. Verifique sua internet.';
+          mensagem = 'Verifique sua conexão com a internet.';
           break;
         case 'auth/too-many-requests':
           mensagem = 'Muitas tentativas. Tente novamente mais tarde.';

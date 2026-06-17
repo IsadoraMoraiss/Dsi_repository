@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import StarRating from '../../components/ui/StarRating';
@@ -127,6 +128,7 @@ export default function AvaliacoesScreen() {
       publica: novaPublica,
       autorUid: user.uid,
       autorNome: userData?.nome ?? 'Usuário',
+      avatarUrl: userData?.avatarUrl ?? undefined,
     };
 
     try {
@@ -198,6 +200,11 @@ export default function AvaliacoesScreen() {
           avaliacoes.map((av) => (
             <View key={av.id} style={styles.card}>
               <View style={styles.cardHeader}>
+                {userData?.avatarUrl ? (
+                  <Image source={{ uri: userData.avatarUrl }} style={styles.reviewAvatar} />
+                ) : (
+                  <MaterialIcons name="person" size={36} color={Colors.textGray} />
+                )}
                 <View style={styles.cardTitleRow}>
                   <MaterialIcons name="place" size={18} color={Colors.textWhite} />
                   <Text style={[styles.cardCidade, { fontSize: r.font(16) }]}>
@@ -381,8 +388,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  reviewAvatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', marginRight: 8 },
   cardCidade: { color: Colors.textWhite, fontWeight: '700' },
   cardStarRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   cardData: { color: Colors.textGray },

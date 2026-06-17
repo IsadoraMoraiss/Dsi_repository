@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useResponsive } from '../../utils/responsive';
 
@@ -40,7 +40,7 @@ function NavItem({
       <MaterialIcons
         name={item.icon}
         size={r.scaleX(24)}
-        color={active ? Colors.primary : Colors.textGray}
+        color={active ? Colors.primary : Platform.OS === 'web' ? 'rgba(255,255,255,0.5)' : Colors.textGray}
       />
       <Text
         style={[
@@ -55,12 +55,23 @@ function NavItem({
   );
 }
 
+// Web-only glassmorphism style, passed via inline prop to avoid TypeScript issues
+// with non-standard CSS properties (backdropFilter) in StyleSheet.
+const webFooterExtra = Platform.OS === 'web'
+  ? ({
+      backgroundColor: 'rgba(20,18,90,0.72)',
+      borderTopColor: 'rgba(121,116,231,0.25)',
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+    } as object)
+  : {};
+
 export default function BottomNav({ activeKey, onChange, bottomInset, onPressCenter }: BottomNavProps) {
   const r = useResponsive();
   const navHeight = r.scaleY(64) + bottomInset;
 
   return (
-    <View style={[styles.footer, { height: navHeight, paddingBottom: bottomInset }]}>
+    <View style={[styles.footer, { height: navHeight, paddingBottom: bottomInset }, webFooterExtra as any]}>
       {ITEMS_LEFT.map((item) => (
         <NavItem
           key={item.key}
@@ -104,7 +115,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    color: Colors.textGray,
+    color: Platform.OS === 'web' ? 'rgba(255,255,255,0.5)' : Colors.textGray,
   },
   labelActive: {
     color: Colors.primary,

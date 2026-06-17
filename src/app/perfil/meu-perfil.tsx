@@ -40,10 +40,7 @@ export default function MeuPerfilScreen() {
     );
   }
 
-  const requisitos =
-    userData?.requisitos?.length
-      ? userData.requisitos
-      : ['Configure suas preferências em Preferências de Viagem'];
+  const requisitos = userData?.requisitos || ['Média', '1-3 dias'];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -63,6 +60,7 @@ export default function MeuPerfilScreen() {
         <View style={styles.avatarWrapper}>
           <View style={styles.avatar}>
             {userData?.avatarUrl ? (
+              // mostrar avatar remoto salvo
               <Image source={{ uri: userData.avatarUrl }} style={styles.avatarImage} />
             ) : (
               <MaterialIcons name="person" size={r.scaleX(56)} color={Colors.textWhite} />
@@ -131,7 +129,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     overflow: 'hidden',
   },
-  avatarImage: { width: '100%', height: '100%' },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 55,
+  },
   name: { color: Colors.textWhite, fontWeight: '700', marginBottom: 12 },
   editBtn: {
     flexDirection: 'row',

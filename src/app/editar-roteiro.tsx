@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,6 +21,12 @@ import {
   UserRoteiro,
   atualizarRoteiroUsuario,
 } from '../services/roteiros';
+import {
+  deleteSupabaseStorageFile,
+  uploadImageToSupabaseBucket,
+  isSupabaseConfigured as isSupabaseStorageConfigured,
+} from '../services/supabase';
+import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../utils/responsive';
 
 const todasCidadesJson = require('../data/cidades.json') as Cidade[];
@@ -120,6 +127,12 @@ export default function EditarRoteiroScreen() {
   const [temasSelecionados, setTemasSelecionados] = useState<string[]>([]);
   const [cidadesSelecionadas, setCidadesSelecionadas] = useState<string[]>([]);
   const [corSelecionada, setCorSelecionada] = useState(CORES[0]);
+  const [coverUrl, setCoverUrl] = useState('');
+  const [initialCoverUrl, setInitialCoverUrl] = useState('');
+  const [coverLocalUri, setCoverLocalUri] = useState<string | null>(null);
+  const [coverBase64, setCoverBase64] = useState<string | null>(null);
+  const [coverRemoved, setCoverRemoved] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   const todasCidades = useMemo(
     () => [...todasCidadesJson].sort((a, b) => a.nome.localeCompare(b.nome)),
@@ -184,6 +197,10 @@ export default function EditarRoteiroScreen() {
           setTemasSelecionados(rot.temas || []);
           setCidadesSelecionadas(rot.cidadeIds || []);
           setCorSelecionada(rot.cor);
+          setCoverUrl(rot.imagemUrl ?? '');
+          setInitialCoverUrl(rot.imagemUrl ?? '');
+          setCoverRemoved(false);
+          setCoverLocalUri(null);
         }
       } catch (error) {
         console.error('[editar-roteiro]', error);
@@ -208,6 +225,41 @@ export default function EditarRoteiroScreen() {
     );
   }
 
+  async function handleEscolherCapa() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permissão necessária', 'Permita acesso às fotos para escolher uma imagem de capa.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (result.canceled) return;
+    const uri = result.assets[0]?.uri;
+    const base64 = result.assets[0]?.base64 ?? null;
+    if (!uri || !base64) {
+      Alert.alert('Erro', 'Não foi possível carregar a imagem selecionada.');
+      return;
+    }
+
+    setCoverLocalUri(uri);
+    setCoverBase64(base64);
+    setCoverRemoved(false);
+  }
+
+  function handleRemoverCapa() {
+    setCoverLocalUri(null);
+    setCoverBase64(null);
+    setCoverUrl('');
+    setCoverRemoved(true);
+  }
+
   async function handleSalvarAlteracoes() {
     if (!roteiro || !nome.trim()) {
       Alert.alert('Atenção', 'O nome do roteiro não pode estar vazio.');
@@ -216,6 +268,51 @@ export default function EditarRoteiroScreen() {
 
     setSalvando(true);
     try {
+      let imagemUrlFinal: string | undefined = coverUrl;
+      if (coverLocalUri) {
+        if (!isSupabaseStorageConfigured) {
+          Alert.alert('Supabase não configurado', 'A capa só pode ser enviada se SUPABASE estiver configurado no .env.');
+          setSalvando(false);
+          return;
+        }
+        if (!coverBase64) {
+          Alert.alert('Erro', 'Não foi possível obter os dados da imagem selecionada.');
+          setSalvando(false);
+          return;
+        }
+        setUploadingCover(true);
+        try {
+          imagemUrlFinal = await uploadImageToSupabaseBucket(
+            'foto-capa-roteiro',
+            `roteiros/${user?.uid}/${Date.now()}-${nome.trim().replace(/[^a-zA-Z0-9]/g, '-')}.jpg`,
+            coverBase64,
+          );
+        } catch (error) {
+          console.error('[editar-roteiro] upload capa falhou', error);
+          Alert.alert('Erro', 'Não foi possível enviar a nova capa. Tente novamente.');
+          setUploadingCover(false);
+          setSalvando(false);
+          return;
+        } finally {
+          setUploadingCover(false);
+        }
+
+        if (initialCoverUrl) {
+          try {
+            await deleteSupabaseStorageFile(initialCoverUrl);
+          } catch (error) {
+            console.warn('[editar-roteiro] falha ao excluir capa antiga:', error);
+          }
+        }
+      } else if (coverRemoved && initialCoverUrl) {
+        imagemUrlFinal = '';
+        try {
+          await deleteSupabaseStorageFile(initialCoverUrl);
+        } catch (error) {
+          console.warn('[editar-roteiro] falha ao excluir capa antiga:', error);
+        }
+      }
+
       await atualizarRoteiroUsuario(roteiro.id, {
         nome: nome.trim(),
         descricao: descricao.trim(),
@@ -225,6 +322,7 @@ export default function EditarRoteiroScreen() {
         cor: corSelecionada,
         duracao: duracaoCalculada,
         distanciaKm: distanciaTotalKm,
+        imagemUrl: imagemUrlFinal,
       });
       Alert.alert('Sucesso', 'Roteiro atualizado com sucesso!');
       router.back();
@@ -292,6 +390,25 @@ export default function EditarRoteiroScreen() {
           numberOfLines={3}
           textAlignVertical="top"
         />
+
+        {/* Capa do Roteiro */}
+        <Text style={[styles.label, { fontSize: r.font(15), marginTop: 16 }]}>Capa do Roteiro</Text>
+        <TouchableOpacity style={styles.coverPicker} onPress={handleEscolherCapa} activeOpacity={0.8}>
+          {coverLocalUri || coverUrl ? (
+            <Image source={{ uri: coverLocalUri ?? coverUrl }} style={styles.coverPreview} />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <MaterialIcons name="photo" size={22} color={Colors.textGray} />
+              <Text style={[styles.coverPlaceholderText, { fontSize: r.font(14) }]}>Escolher imagem de capa</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        {(coverLocalUri || coverUrl) && !uploadingCover && (
+          <TouchableOpacity style={styles.coverRemoveBtn} onPress={handleRemoverCapa} activeOpacity={0.8}>
+            <MaterialIcons name="delete" size={18} color={Colors.textWhite} />
+            <Text style={[styles.coverRemoveText, { fontSize: r.font(13) }]}>Remover capa</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Temas/Palavras-chave */}
         <Text style={[styles.label, { fontSize: r.font(15), marginTop: 16 }]}>Temas/Palavras-chave</Text>
@@ -454,6 +571,48 @@ const styles = StyleSheet.create({
   },
   temaBadgeText: { color: Colors.textWhite, fontWeight: '500' },
   temaBadgeTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  coverPicker: {
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  coverPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  coverPlaceholderText: {
+    color: Colors.textGray,
+    fontWeight: '600',
+  },
+  coverRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 12,
+  },
+  coverRemoveText: {
+    color: Colors.textWhite,
+    fontWeight: '700',
+  },
   sectionHeader: { marginBottom: 12 },
   cityRow: {
     flexDirection: 'row',

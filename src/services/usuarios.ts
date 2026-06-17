@@ -53,3 +53,17 @@ export async function salvarPerfilUsuario(uid: string, payload: UsuarioPerfilPay
     { merge: true },
   );
 }
+
+/** Busca o nome de exibição de um usuário pelo uid. Retorna null se não encontrado. */
+export async function buscarNomeUsuario(uid: string): Promise<string | null> {
+  if (!db || !uid) return null;
+  try {
+    const snap = await getDoc(doc(db, 'usuarios', uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return (data?.nome as string | undefined) || null;
+  } catch {
+    return null;
+  }
+}
+

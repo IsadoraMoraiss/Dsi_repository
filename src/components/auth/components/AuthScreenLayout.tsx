@@ -15,7 +15,7 @@ type AuthScreenLayoutProps = {
   title: string;
   description?: string;
   titleAlign?: 'left' | 'center';
-  children: React.ReactNode;
+  children?: React.ReactNode;
   primaryAction?: React.ReactNode;
   footerAction?: React.ReactNode;
   overlay?: React.ReactNode;

@@ -2,10 +2,10 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Alert, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { createUserWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
-import { garantirPerfilUsuario } from '../services/usuarios';
+import { createAndSendCode } from '../services/authCodes';
 import AuthLinkAction from '../components/auth/components/AuthLinkAction';
 import AuthScreenLayout from '../components/auth/components/AuthScreenLayout';
 import FormField from '../components/auth/components/FormField';
@@ -82,7 +82,7 @@ export default function CadastroScreen() {
     // entao navegamos antes/independente do Alert.
     if (!isFirebaseConfigured || !auth || !db) {
       Alert.alert('Modo desenvolvimento', 'Cadastro simulado. Nenhuma conta real foi criada.');
-      router.replace('/login');
+      router.replace('/verificacao');
       return;
     }
 
@@ -93,26 +93,24 @@ export default function CadastroScreen() {
       const userCredential = await createUserWithEmailAndPassword(auth, emailTrim, senha);
       const user = userCredential.user;
       contaCriada = true;
-      await updateProfile(user, { displayName: nomeTrim });
 
       await setDoc(doc(db, 'usuarios', user.uid), {
         nome: nomeTrim,
         email: emailTrim,
-        telefone: '',
-        dataNascimento: '',
-        avatarUrl: '',
         createdAt: new Date().toISOString(),
         preferenciasConcluidas: false,
         preferencias: {},
-        requisitos: [],
-        roteirosSalvos: [],
+        emailVerificado: false, // Novo campo
       });
-      await garantirPerfilUsuario(user, { nome: nomeTrim, email: emailTrim });
 
-      // createUserWithEmailAndPassword loga automaticamente; saimos para forcar
-      // login manual e cair no onboarding de preferencias.
+      // Gera o código OTP customizado e salva no Firestore
+      await createAndSendCode(emailTrim, 'verification');
+
+      // Logout para forçar validação antes de acessar
       await signOut(auth);
-      router.replace('/login');
+
+      // Passa o e-mail via param para a tela de verificação saber de quem é
+      router.replace({ pathname: '/verificacao', params: { email: emailTrim } });
     } catch (error: any) {
       console.error('[cadastro]', error);
       let mensagem = 'Erro ao criar conta. Tente novamente.';
@@ -121,16 +119,16 @@ export default function CadastroScreen() {
         mensagem =
           'Sua conta foi criada, mas nao foi possivel salvar seu perfil. ' +
           'Verifique as Regras do Firestore (colecao "usuarios") e tente fazer login.';
-        try { await signOut(auth); } catch {}
-        router.replace('/login');
+        try { await signOut(auth); } catch { }
+        router.replace('/verificacao');
       } else if (error.code === 'auth/email-already-in-use') {
-        mensagem = 'Este e-mail já está em uso.';
+        mensagem = 'Este e-mail já está cadastrado.';
       } else if (error.code === 'auth/invalid-email') {
         mensagem = 'Informe um e-mail válido.';
       } else if (error.code === 'auth/weak-password') {
         mensagem = 'A senha precisa ter pelo menos 6 caracteres.';
       } else if (error.code === 'auth/network-request-failed') {
-        mensagem = 'Falha de conexão. Verifique sua internet.';
+        mensagem = 'Verifique sua conexão com a internet.';
       }
 
       Alert.alert('Erro', mensagem);

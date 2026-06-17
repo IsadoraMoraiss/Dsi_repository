@@ -1,18 +1,21 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { Colors } from '../../constants/Colors';
 import { Font, LetterSpacing, Radius, Shadow, Size } from '../../constants/Tokens';
 
 type PrimaryButtonProps = {
-  title: string;
+  title?: string;
+  children?: React.ReactNode;
   onPress: () => void;
+  disabled?: boolean;
+  style?: ViewStyle;
 };
 
-export default function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
+export default function PrimaryButton({ title, children, onPress, disabled, style }: PrimaryButtonProps) {
   return (
-    <Pressable style={styles.button} onPress={onPress}>
-      <Text style={styles.text}>{title}</Text>
+    <Pressable style={[styles.button, style]} onPress={onPress} disabled={disabled}>
+      {children ?? <Text style={styles.text}>{title}</Text>}
     </Pressable>
   );
 }
@@ -20,7 +23,6 @@ export default function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
 const styles = StyleSheet.create({
   button: {
     width: '100%',
-    maxWidth: Size.buttonMaxWidth,
     height: Size.buttonHeight,
     borderRadius: Radius.lg,
     backgroundColor: Colors.primary,

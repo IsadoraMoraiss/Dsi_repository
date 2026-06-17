@@ -1,5 +1,9 @@
 export type Avaliacao = {
   id: string;
+  autorUid?: string;
+  autorNome?: string;
+  avatarUrl?: string;
+  avatarLetra?: string;
   cidadeId?: string;
   cidadeNome: string;
   cidadeEstado: string;
@@ -7,8 +11,6 @@ export type Avaliacao = {
   data: string;
   comentario: string;
   publica: boolean;
-  autorUid?: string;
-  autorNome?: string;
 };
 
 export const minhasAvaliacoes: Avaliacao[] = [

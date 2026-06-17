@@ -1,9 +1,9 @@
-import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Radius } from '../../constants/Tokens';
 import { useResponsive } from '../../utils/responsive';
+import SearchBar from '../ui/SearchBar';
 
 type HomeSearchHeaderProps = {
   busca: string;
@@ -20,24 +20,14 @@ export default function HomeSearchHeader({
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        style={[styles.block, { height: r.scaleY(80), paddingHorizontal: r.scaleX(20), paddingBottom: r.scaleY(12), paddingTop: r.scaleY(12) }]}
-        onPress={() => null}
-      >
-        <View style={[styles.inputRow, { paddingHorizontal: r.scaleX(12), height: r.scaleY(42) }]}>
-          <MaterialIcons name="search" size={r.scaleX(22)} color="rgba(255,255,255,0.8)" />
-          <TextInput
-            style={[styles.input, { marginLeft: r.scaleX(8), fontSize: r.font(14) }]}
-            placeholder="Pesquisar cidade..."
-            placeholderTextColor="rgba(255,255,255,0.55)"
-            value={busca}
-            onChangeText={onChangeBusca}
-            onSubmitEditing={onSubmitBusca}
-            returnKeyType="search"
-          />
-        </View>
-      </TouchableOpacity>
+      <View style={[styles.block, { height: r.scaleY(80), paddingHorizontal: r.scaleX(20), paddingBottom: r.scaleY(12), paddingTop: r.scaleY(12) }]}>
+        <SearchBar
+          value={busca}
+          onChangeText={onChangeBusca}
+          placeholder="Pesquisar cidade..."
+          onSubmitEditing={onSubmitBusca}
+        />
+      </View>
     </View>
   );
 }
@@ -53,16 +43,5 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: Radius.xl,
     borderBottomRightRadius: Radius.xl,
     overflow: 'hidden',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: Radius.sm,
-  },
-  input: {
-    flex: 1,
-    color: Colors.textWhite,
-    height: '100%',
   },
 });

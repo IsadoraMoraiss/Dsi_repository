@@ -130,11 +130,11 @@ export default function RoteiroDetalhesScreen() {
       try {
         const roteiro = await buscarRoteiroPorId(roteiroId, user.uid);
         if (!active) return;
-        if (roteiro && roteiro.uid === user.uid) {
+        if (roteiro) {
           const enriquecido = await enriquecerRoteiroUsuario(roteiro, todasCidades);
           if (active) setRoteiroUsuario(enriquecido);
         } else if (active) {
-          setRoteiroUsuario(roteiro);
+          setRoteiroUsuario(null);
         }
       } catch (error) {
         console.error('[roteiro-detalhes]', error);
@@ -263,7 +263,7 @@ export default function RoteiroDetalhesScreen() {
           onPress: async () => {
             try {
               await deletarRoteiroUsuario(roteiroUsuario.id);
-              router.replace('/roteiros');
+              router.replace('/(tabs)/roteiros' as any);
             } catch (error) {
               console.error('[deletar-roteiro]', error);
               Alert.alert('Erro', 'Não foi possível deletar o roteiro.');
