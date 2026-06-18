@@ -21,6 +21,7 @@ web-build/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.out.log
 expo.log
 expo.err.log
 
