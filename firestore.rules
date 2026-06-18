@@ -1,53 +1,197 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validRoteiro(data) {
+      return data.keys().hasAll([
+          'uid', 'nome', 'cidades', 'cidadeIds', 'privado',
+          'favoritosCount', 'visualizacoesCount'
+        ])
+        && data.uid is string
+        && data.nome is string
+        && data.nome.size() > 0
+        && data.nome.size() <= 120
+        && data.cidades is list
+        && data.cidades.size() <= 50
+        && data.cidadeIds is list
+        && data.cidadeIds.size() <= 50
+        && data.privado is bool
+        && data.favoritosCount is int
+        && data.favoritosCount >= 0
+        && data.visualizacoesCount is int
+        && data.visualizacoesCount >= 0;
+    }
+
+    function validPublicCounterUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.privado == false
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.privado == resource.data.privado
+        && changed.hasOnly(['favoritosCount', 'visualizacoesCount', 'updatedAt'])
+        && (
+          request.resource.data.favoritosCount == resource.data.favoritosCount
+          || request.resource.data.favoritosCount == resource.data.favoritosCount + 1
+          || (
+            resource.data.favoritosCount > 0
+            && request.resource.data.favoritosCount == resource.data.favoritosCount - 1
+          )
+        )
+        && (
+          request.resource.data.visualizacoesCount == resource.data.visualizacoesCount
+          || request.resource.data.visualizacoesCount == resource.data.visualizacoesCount + 1
+        );
+    }
+
+    function validChecklist(data, checklistId) {
+      return data.keys().hasAll(['id', 'userId', 'titulo', 'concluido', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'titulo', 'prazo', 'concluido', 'createdAt'])
+        && data.id == checklistId
+        && data.userId is string
+        && data.titulo is string
+        && data.titulo.size() > 0
+        && data.titulo.size() <= 120
+        && data.concluido is bool
+        && data.createdAt is string
+        && (!('prazo' in data) || data.prazo is string);
+    }
+
+    function validAgenda(data, agendaId) {
+      return data.keys().hasAll([
+          'id', 'userId', 'data', 'titulo', 'horario',
+          'local', 'descricao', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'userId', 'data', 'titulo', 'horario',
+          'local', 'descricao', 'createdAt'
+        ])
+        && data.id == agendaId
+        && data.userId is string
+        && data.data is string
+        && data.titulo is string
+        && data.titulo.size() > 0
+        && data.titulo.size() <= 120
+        && data.horario is string
+        && data.local is string
+        && data.local.size() <= 160
+        && data.descricao is string
+        && data.descricao.size() <= 1000
+        && data.createdAt is string;
+    }
+
+    function validAvaliacao(data) {
+      return data.keys().hasAll([
+          'uid', 'autorUid', 'cidadeNome', 'cidadeEstado',
+          'nota', 'comentario', 'publica'
+        ])
+        && data.uid is string
+        && data.autorUid is string
+        && data.cidadeNome is string
+        && data.cidadeEstado is string
+        && data.nota is number
+        && data.nota >= 1
+        && data.nota <= 5
+        && data.comentario is string
+        && data.comentario.size() <= 500
+        && data.publica is bool;
+    }
 
     match /usuarios/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
     match /roteiros/{roteiroId} {
-      // Ler próprios roteiros ou roteiros públicos da comunidade
-      allow read: if request.auth != null
+      allow read: if signedIn()
         && (resource.data.uid == request.auth.uid || resource.data.privado == false);
 
-      allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && validRoteiro(request.resource.data);
 
-      // Dono edita tudo; qualquer usuário logado pode atualizar contadores de roteiros públicos
-      allow update: if request.auth != null
+      allow update: if signedIn()
+        && validRoteiro(request.resource.data)
         && (
-          resource.data.uid == request.auth.uid
-          || resource.data.privado == false
+          (
+            resource.data.uid == request.auth.uid
+            && request.resource.data.uid == resource.data.uid
+          )
+          || validPublicCounterUpdate()
         );
 
-      allow delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /verificacoes/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /avaliacoes/{avaliacaoId} {
+      allow read: if signedIn()
+        && (
+          resource.data.publica == true
+          || resource.data.uid == request.auth.uid
+          || resource.data.autorUid == request.auth.uid
+        );
+
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.autorUid == request.auth.uid
+        && validAvaliacao(request.resource.data);
+
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.autorUid == resource.data.autorUid
+        && validAvaliacao(request.resource.data);
+
+      allow delete: if signedIn()
+        && (
+          resource.data.uid == request.auth.uid
+          || resource.data.autorUid == request.auth.uid
+        );
+    }
+
+    match /favoritos/{favoritoId} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid;
+    }
+
+    match /checklists/{checklistId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && validChecklist(request.resource.data, checklistId);
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && validChecklist(request.resource.data, checklistId);
+    }
+
+    match /agendas/{agendaId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && validAgenda(request.resource.data, agendaId);
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && validAgenda(request.resource.data, agendaId);
+    }
+
+    match /guias/{guiaId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
     }
   }
-  // Permite que o próprio usuário leia/escreva seus dados de verificação
-match /verificacoes/{userId} {
-  allow read, write: if request.auth != null && request.auth.uid == userId;
-}
-
-// Avaliações: usuário autenticado cria/edita as próprias
-match /avaliacoes/{avaliacaoId} {
-  allow read: if request.auth != null;
-  allow create: if request.auth != null;
-  allow update, delete: if request.auth != null
-    && resource.data.uid == request.auth.uid;
-}
-
-// Favoritos: apenas o dono acessa
-match /favoritos/{favoritoId} {
-  allow read, write: if request.auth != null
-    && resource.data.uid == request.auth.uid;
-}
-match /checklists/{checklistId} {
-  allow read, write: if request.auth != null;
-}
-
-match /agendas/{agendaId} {
-  allow read, write: if request.auth != null;
-}
 }
