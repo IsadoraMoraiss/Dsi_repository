@@ -1,5 +1,5 @@
 import { User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { db } from './firebase';
 
 export type UsuarioPerfilPayload = {
@@ -67,3 +67,34 @@ export async function buscarNomeUsuario(uid: string): Promise<string | null> {
   }
 }
 
+export async function excluirDadosBasicosUsuario(uid: string) {
+  if (!db) throw new Error('Firebase nao configurado.');
+
+  const consultas = [
+    query(collection(db, 'roteiros'), where('uid', '==', uid)),
+    query(collection(db, 'avaliacoes'), where('uid', '==', uid)),
+    query(collection(db, 'avaliacoes'), where('autorUid', '==', uid)),
+    query(collection(db, 'favoritos'), where('uid', '==', uid)),
+    query(collection(db, 'agendas'), where('userId', '==', uid)),
+    query(collection(db, 'checklists'), where('userId', '==', uid)),
+  ];
+  const resultados = await Promise.all(consultas.map((consulta) => getDocs(consulta)));
+  const documentos = new Map<string, ReturnType<typeof doc>>();
+
+  resultados.forEach((resultado) => {
+    resultado.docs.forEach((documento) => documentos.set(documento.ref.path, documento.ref));
+  });
+
+  const guiaRef = doc(db, 'guias', uid);
+  const guiaSnap = await getDoc(guiaRef);
+  if (guiaSnap.exists() && guiaSnap.data()?.ownerUid === uid) {
+    documentos.set(guiaRef.path, guiaRef);
+  }
+
+  await Promise.all([
+    ...Array.from(documentos.values()).map((referencia) => deleteDoc(referencia)),
+    deleteDoc(doc(db, 'usuarios', uid)),
+  ]);
+}
+  }
+}
