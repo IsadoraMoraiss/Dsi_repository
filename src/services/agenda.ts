@@ -5,7 +5,8 @@ export type AgendaItem = {
   id: string;
   userId: string;
   data: string; // formato YYYY-MM-DD
-  horario: string; // formato HH:mm
+  titulo: string;
+  horario: string; // formato HH:mm, opcional na UI
   local: string;
   descricao: string;
   createdAt: string;
@@ -32,7 +33,13 @@ export async function listarAgendas(userId: string): Promise<AgendaItem[]> {
 
     const items = snapshot.docs.map(docSnap => {
       const data = docSnap.data();
-      const item = { ...data, id: docSnap.id } as AgendaItem;
+      const item = {
+        ...data,
+        id: docSnap.id,
+        titulo: data.titulo ?? data.local ?? 'Evento',
+        horario: data.horario ?? '',
+        descricao: data.descricao ?? '',
+      } as AgendaItem;
       console.log('[Agenda] Item lido:', JSON.stringify(item));
       return item;
     });
@@ -48,6 +55,7 @@ export async function listarAgendas(userId: string): Promise<AgendaItem[]> {
 export async function criarAgenda(
   userId: string,
   data: string,
+  titulo: string,
   horario: string,
   local: string,
   descricao: string
@@ -60,6 +68,7 @@ export async function criarAgenda(
     id: newRef.id,
     userId,
     data,
+    titulo,
     horario,
     local,
     descricao,
