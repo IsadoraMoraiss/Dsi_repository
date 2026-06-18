@@ -36,6 +36,12 @@
           "photosPermission": "Permita escolher uma foto para exibir no seu perfil."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permita acessar sua localizacao para centralizar o mapa na sua cidade."
+        }
+      ],
       "expo-asset",
       "expo-notifications",
       "@react-native-community/datetimepicker"
