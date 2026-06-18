@@ -96,5 +96,3 @@ export async function excluirDadosBasicosUsuario(uid: string) {
     deleteDoc(doc(db, 'usuarios', uid)),
   ]);
 }
-  }
-}
