@@ -11,7 +11,6 @@ interface UserData {
   dataNascimento?: string;
   avatarUrl?: string;
   preferenciasConcluidas?: boolean;
-  emailVerificado?: boolean;
   preferencias?: Record<string, unknown>;
   requisitos?: string[];
   roteirosSalvos?: string[];
@@ -58,7 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: authUser.email || '',
           avatarUrl: data?.avatarUrl ?? '',
           preferenciasConcluidas: data?.preferenciasConcluidas ?? false,
-          emailVerificado: data?.emailVerificado ?? false,
           preferencias: data?.preferencias ?? {},
           requisitos: data?.requisitos ?? [],
           roteirosSalvos: data?.roteirosSalvos ?? [],

@@ -1,11 +1,10 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Alert, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
-import { createAndSendCode } from '../services/authCodes';
 import AuthLinkAction from '../components/auth/components/AuthLinkAction';
 import AuthScreenLayout from '../components/auth/components/AuthScreenLayout';
 import FormField from '../components/auth/components/FormField';
@@ -17,8 +16,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function CadastroScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ email?: string }>();
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [erroNome, setErroNome] = useState('');
@@ -103,13 +103,11 @@ export default function CadastroScreen() {
         emailVerificado: false, // Novo campo
       });
 
-      // Gera o código OTP customizado e salva no Firestore
-      await createAndSendCode(emailTrim, 'verification');
+      await sendEmailVerification(user);
 
       // Logout para forçar validação antes de acessar
       await signOut(auth);
 
-      // Passa o e-mail via param para a tela de verificação saber de quem é
       router.replace({ pathname: '/verificacao', params: { email: emailTrim } });
     } catch (error: any) {
       console.error('[cadastro]', error);
@@ -117,10 +115,10 @@ export default function CadastroScreen() {
 
       if (contaCriada) {
         mensagem =
-          'Sua conta foi criada, mas nao foi possivel salvar seu perfil. ' +
-          'Verifique as Regras do Firestore (colecao "usuarios") e tente fazer login.';
+          'Sua conta foi criada, mas não foi possível concluir o envio do e-mail. ' +
+          'Tente fazer login para solicitar um novo link.';
         try { await signOut(auth); } catch { }
-        router.replace('/verificacao');
+        router.replace('/login');
       } else if (error.code === 'auth/email-already-in-use') {
         mensagem = 'Este e-mail já está cadastrado.';
       } else if (error.code === 'auth/invalid-email') {

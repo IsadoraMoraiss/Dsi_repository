@@ -4,8 +4,18 @@ export type Guia = {
   nome: string;
   descricao?: string;
   tipo: string;
+  cidades?: string[];
   cidadeIds: string[];
   cidadeNomes?: string[];
+  foto_perfil?: string;
   imagemUrl?: string;
   endereco?: string;
+  codigoIdentificacao?: string;
+  especializacao?: string;
+  idiomas?: string[];
+  experiencia?: string;
+  valor?: string;
+  tipoCobranca?: 'pessoa' | 'grupo';
+  telefone?: string;
+  status?: 'pendente' | 'aprovado' | 'rejeitado';
 };
