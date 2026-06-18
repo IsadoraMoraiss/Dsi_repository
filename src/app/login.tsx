@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ActivityIndicator, Alert } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import AuthLinkAction from '../components/auth/components/AuthLinkAction';
@@ -88,6 +88,21 @@ export default function LoginScreen() {
       const credential = await signInWithEmailAndPassword(auth, emailTrim, senha);
       const user = credential.user;
 
+      await user.reload();
+      if (!user.emailVerified) {
+        try {
+          await sendEmailVerification(user);
+        } catch (verificationError: any) {
+          if (verificationError?.code !== 'auth/too-many-requests') {
+            console.warn('[login] falha ao reenviar verificacao:', verificationError);
+          }
+        }
+        await signOut(auth);
+        showToast('Verifique seu e-mail. Um novo link foi enviado.');
+        setTimeout(() => router.replace({ pathname: '/verificacao', params: { email: emailTrim } }), 1500);
+        return;
+      }
+
       const userRef = doc(db, 'usuarios', user.uid);
       const snap = await getDoc(userRef);
 
@@ -106,11 +121,8 @@ export default function LoginScreen() {
         await setDoc(userRef, docData);
       }
 
-      // Bloqueia o acesso se o e-mail ainda não foi verificado (agora usando a flag do Firestore)
-      if (docData.emailVerificado === false) {
-        showToast('Verifique seu e-mail antes de entrar.');
-        setTimeout(() => router.replace({ pathname: '/verificacao', params: { email: emailTrim } }), 1500);
-        return;
+      if (docData.emailVerificado !== true) {
+        await setDoc(userRef, { emailVerificado: true }, { merge: true });
       }
 
       if (docData.preferenciasConcluidas) {
@@ -119,16 +131,16 @@ export default function LoginScreen() {
         router.replace('/perfil/preferencias');
       }
     } catch (error: any) {
-      console.error('[login]', error);
       let mensagem = 'Erro ao fazer login. Tente novamente.';
       let usarToast = false;
+      let oferecerCadastro = false;
 
       switch (error.code) {
         case 'auth/invalid-credential':
         case 'auth/user-not-found':
         case 'auth/wrong-password':
-          mensagem = 'E-mail ou senha incorretos.';
-          usarToast = true;
+          mensagem = 'Conta não encontrada ou senha incorreta. Redirecionando para o cadastro.';
+          oferecerCadastro = true;
           break;
         case 'auth/invalid-email':
           mensagem = 'Informe um e-mail válido.';
@@ -141,7 +153,19 @@ export default function LoginScreen() {
           break;
       }
 
-      if (usarToast) {
+      if (oferecerCadastro) {
+        Alert.alert(
+          'Não foi possível entrar',
+          'Esta conta pode não existir ou a senha está incorreta.',
+          [
+            { text: 'Tentar novamente', style: 'cancel' },
+            {
+              text: 'Criar conta',
+              onPress: () => router.replace({ pathname: '/cadastro', params: { email: emailTrim } }),
+            },
+          ],
+        );
+      } else if (usarToast) {
         showToast(mensagem);
       } else {
         Alert.alert('Erro', mensagem);
