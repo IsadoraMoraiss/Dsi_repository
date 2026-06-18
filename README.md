@@ -1,5 +1,8 @@
 # Brasil em Foco
 
+> Esta copia usa Firebase Auth e Firestore no plano Spark. Imagens ficam no
+> mesmo Supabase Free configurado no projeto original.
+
 Prototipo desenvolvido para as disciplinas de PISI 3 e DSI da UFRPE.
 
 Este guia explica como rodar o app no celular usando Expo Go e como deixar o Firebase funcionando para login, perfil, preferencias e roteiros.
@@ -52,6 +55,25 @@ Copy-Item .env.example .env
 ```
 
 O `.env.example` ja esta preenchido com a configuracao publica do projeto Firebase usado pela equipe. Nao coloque chave admin no app.
+
+### Publicar regras de seguranca
+
+Os arquivos `firestore.rules` e `firebase.json` fazem parte da configuracao do
+backend. Depois de autenticar o Firebase CLI, publique as regras com:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+### Configurar imagens no Supabase Free
+
+1. Use os buckets publicos `foto-perfil` e `foto-capa-roteiro` do projeto oficial.
+2. No SQL Editor, execute `supabase-storage-policies.sql` somente se as policies ainda nao existirem.
+3. Preencha `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` no `.env`.
+
+Este fluxo reutiliza as policies anonimas do projeto oficial. Ele e adequado para
+a demonstracao academica, mas deve ser substituido por autenticacao no backend antes
+de qualquer publicacao do aplicativo em producao.
 
 Importante:
 
