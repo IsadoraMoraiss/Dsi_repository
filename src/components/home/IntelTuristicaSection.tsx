@@ -1,15 +1,13 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import type { CidadeDataset } from '../../types/cidadeDataset';
 import { useResponsive } from '../../utils/responsive';
 import {
-  calcularInfraestruturaTuristica,
-  calcularPotencialJoiaEscondida,
-  classificarPressaoTuristica,
-  corPressaoTuristica,
-  type PressaoTuristica,
+  calcularConversaoTuristica,
+  calcularPotencialNaoConvertido,
+  calcularPotencialTuristico,
 } from '../../utils/indicadoresCidade';
 
 type IntelTuristicaSectionProps = {
@@ -22,6 +20,7 @@ type IndicadorCardProps = {
   value: string;
   suffix?: string;
   color: string;
+  explanation: string;
 };
 
 function corScore(score: number): string {
@@ -30,61 +29,104 @@ function corScore(score: number): string {
   return Colors.danger;
 }
 
-function corPressao(pressao: PressaoTuristica): string {
-  return corPressaoTuristica(pressao);
+function explicarPotencial(score: number, cidadeNome: string): string {
+  if (score >= 70) {
+    return `${cidadeNome} aparece com alta capacidade de atrair visitantes.`;
+  }
+  if (score >= 40) {
+    return `${cidadeNome} tem bom potencial turístico, mas ainda pode ganhar mais destaque para visitantes.`;
+  }
+  return `${cidadeNome} aparece com potencial turístico mais baixo nos dados atuais.`;
 }
 
-function IndicadorCard({ icon, title, value, suffix, color }: IndicadorCardProps) {
+function explicarConversao(score: number, cidadeNome: string): string {
+  if (score >= 70) {
+    return `${cidadeNome} já transforma bem seu potencial em estrutura para receber visitantes.`;
+  }
+  if (score >= 40) {
+    return `${cidadeNome} tem uma base turística relevante, mas ainda pode ampliar serviços e capacidade de atendimento.`;
+  }
+  return `${cidadeNome} tem pouca estrutura turística registrada em relação ao que poderia oferecer.`;
+}
+
+function explicarPotencialNaoConvertido(score: number, cidadeNome: string): string {
+  if (score >= 70) {
+    return `${cidadeNome} tem grande oportunidade de crescer no turismo, porque o potencial aparece maior que a estrutura registrada.`;
+  }
+  if (score >= 40) {
+    return `${cidadeNome} já é turística, mas ainda pode ampliar hospedagem, serviços e experiências para acompanhar seu potencial.`;
+  }
+  if (score > 0) {
+    return `${cidadeNome} parece ter uma estrutura próxima do potencial indicado pelos dados.`;
+  }
+  return `${cidadeNome} não mostra diferença relevante entre potencial e estrutura registrada nos dados atuais.`;
+}
+
+function IndicadorCard({ icon, title, value, suffix, color, explanation }: IndicadorCardProps) {
   const r = useResponsive();
+  const alertTitle = title.replace(/\n/g, ' ');
 
   return (
-    <View style={[styles.indicadorCard, { borderColor: color }]}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.indicadorCard,
+        { borderColor: color },
+        pressed && styles.indicadorCardPressed,
+      ]}
+      onPress={() => Alert.alert(alertTitle, explanation)}
+      accessibilityRole="button"
+      accessibilityLabel={`Entender ${alertTitle}`}
+    >
       <MaterialIcons name={icon} size={22} color={color} />
       <View style={styles.valorRow}>
         <Text style={[styles.indicadorValor, { fontSize: r.font(22), color }]}>{value}</Text>
         {suffix ? <Text style={[styles.indicadorMax, { fontSize: r.font(11) }]}>{suffix}</Text> : null}
       </View>
       <Text style={[styles.indicadorLabel, { fontSize: r.font(11) }]}>{title}</Text>
-    </View>
+    </Pressable>
   );
 }
 
 export default function IntelTuristicaSection({ cidade }: IntelTuristicaSectionProps) {
   const r = useResponsive();
   const indicadores = useMemo(() => {
-    const infraestrutura = calcularInfraestruturaTuristica(cidade);
-    const pressao = classificarPressaoTuristica(cidade);
-    const joiaEscondida = calcularPotencialJoiaEscondida(cidade);
-    return { infraestrutura, pressao, joiaEscondida };
+    const potencial = calcularPotencialTuristico(cidade);
+    const conversao = calcularConversaoTuristica(cidade);
+    const potencialNaoConvertido = calcularPotencialNaoConvertido(cidade);
+    return { potencial, conversao, potencialNaoConvertido };
   }, [cidade]);
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.titulo, { fontSize: r.font(16) }]}>Inteligencia Turistica</Text>
+      <Text style={[styles.titulo, { fontSize: r.font(16) }]}>Inteligência Turística</Text>
       <Text style={[styles.subtitulo, { fontSize: r.font(12) }]}>
-        Indicadores calculados a partir do dataset de cidades brasileiras.
+        Toque em um indicador para entender o que ele representa.
       </Text>
 
       <View style={styles.row}>
         <IndicadorCard
+          icon="auto-graph"
+          title={'Potencial\nTurístico'}
+          value={String(indicadores.potencial)}
+          suffix="/100"
+          color={corScore(indicadores.potencial)}
+          explanation={explicarPotencial(indicadores.potencial, cidade.nome)}
+        />
+        <IndicadorCard
           icon="hotel"
-          title={'Infraestrutura\nTuristica'}
-          value={String(indicadores.infraestrutura)}
+          title={'Conversão\nTurística'}
+          value={String(indicadores.conversao)}
           suffix="/100"
-          color={corScore(indicadores.infraestrutura)}
+          color={corScore(indicadores.conversao)}
+          explanation={explicarConversao(indicadores.conversao, cidade.nome)}
         />
         <IndicadorCard
-          icon="people"
-          title={'Pressao\nTuristica'}
-          value={indicadores.pressao}
-          color={corPressao(indicadores.pressao)}
-        />
-        <IndicadorCard
-          icon="auto-awesome"
-          title={'Joia\nEscondida'}
-          value={String(indicadores.joiaEscondida)}
+          icon="travel-explore"
+          title={'Potencial\nNão Convertido'}
+          value={String(indicadores.potencialNaoConvertido)}
           suffix="/100"
-          color={corScore(indicadores.joiaEscondida)}
+          color={corScore(indicadores.potencialNaoConvertido)}
+          explanation={explicarPotencialNaoConvertido(indicadores.potencialNaoConvertido, cidade.nome)}
         />
       </View>
     </View>
@@ -113,6 +155,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  indicadorCardPressed: { opacity: 0.82 },
   valorRow: { flexDirection: 'row', alignItems: 'flex-end', minHeight: 30 },
   indicadorValor: { fontWeight: '800', lineHeight: 28 },
   indicadorMax: { color: Colors.textGray, marginBottom: 3, marginLeft: 2 },

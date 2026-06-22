@@ -4,8 +4,13 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Radius } from '../../constants/Tokens';
 import { Cidade } from '../../data/mockCidades';
-import { clamp, useResponsive } from '../../utils/responsive';
+import {
+  calcularMediaAvaliacoes,
+  listarAvaliacoesPublicasDaCidade,
+} from '../../services/avaliacoes';
 import { buscarImagemCidade } from '../../services/pexels';
+import { clamp, useResponsive } from '../../utils/responsive';
+
 type CityCardProps = {
   cidade: Cidade;
 };
@@ -14,6 +19,8 @@ export default function CityCard({ cidade }: CityCardProps) {
   const r = useResponsive();
   const router = useRouter();
   const [imagem, setImagem] = useState('');
+  const [mediaAvaliacoes, setMediaAvaliacoes] = useState<number | null | undefined>(undefined);
+
   useEffect(() => {
     async function carregarImagem() {
       const url = await buscarImagemCidade(cidade.nome);
@@ -25,11 +32,42 @@ export default function CityCard({ cidade }: CityCardProps) {
 
     carregarImagem();
   }, [cidade.nome]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarMediaAvaliacoes() {
+      setMediaAvaliacoes(undefined);
+      try {
+        const avaliacoes = await listarAvaliacoesPublicasDaCidade(
+          cidade.id,
+          cidade.nome,
+          cidade.estado,
+        );
+        if (!ativo) return;
+        setMediaAvaliacoes(calcularMediaAvaliacoes(avaliacoes));
+      } catch (error) {
+        console.warn('[city-card:avaliacoes]', error);
+        if (ativo) setMediaAvaliacoes(null);
+      }
+    }
+
+    carregarMediaAvaliacoes();
+    return () => {
+      ativo = false;
+    };
+  }, [cidade.id, cidade.nome, cidade.estado]);
+
   const cardWidth = clamp(Math.round(r.width * 0.43), r.scaleX(142), r.scaleX(188));
   const cardHeight = clamp(Math.round(cardWidth * 1.58), r.scaleY(220), r.scaleY(286));
   const imageHeight = Math.round(cardHeight * 0.46);
   const cardPadding = r.scaleX(8);
   const bodyPadding = r.scaleX(8);
+  const notaExibida = mediaAvaliacoes ?? cidade.avaliacao;
+  const ratingLabel = mediaAvaliacoes === undefined ? '--' : notaExibida.toFixed(1);
+  const descricaoCard =
+    (cidade.descricao ?? '').trim() ||
+    'Descubra pontos turísticos, cultura local e experiências únicas.';
 
   return (
     <TouchableOpacity
@@ -53,9 +91,9 @@ export default function CityCard({ cidade }: CityCardProps) {
           {cidade.regiao}
         </Text>
         <Text style={[styles.description, { fontSize: r.font(12) }]} numberOfLines={2}>
-          Descubra pontos turísticos, cultura local e experiências únicas.
+          {descricaoCard}
         </Text>
-        <Text style={[styles.rating, { fontSize: r.font(12) }]}>⭐ {cidade.avaliacao.toFixed(1)}</Text>
+        <Text style={[styles.rating, { fontSize: r.font(12) }]}>⭐ {ratingLabel}</Text>
       </View>
     </TouchableOpacity>
   );

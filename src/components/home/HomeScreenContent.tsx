@@ -1,17 +1,19 @@
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Radius, Shadow } from '../../constants/Tokens';
 import { categorias, Cidade } from '../../data/mockCidades';
+import { Roteiro } from '../../data/mockRoteiros';
 import { useResponsive } from '../../utils/responsive';
 import HomeSearchHeader from './HomeSearchHeader';
 import HomeSection from './HomeSection';
-import { useRouter } from 'expo-router';
 
 type HomeScreenContentProps = {
   busca: string;
   resultadoBusca: Cidade[] | null;
+  resultadoRoteiros?: Roteiro[] | null;
   carregandoBusca?: boolean;
   recomendadas: Cidade[];
   ultimas: Cidade[];
@@ -21,9 +23,74 @@ type HomeScreenContentProps = {
   onSubmitBusca: () => void;
 };
 
+function RoteiroSearchSection({ roteiros }: { roteiros: Roteiro[] }) {
+  const r = useResponsive();
+  const router = useRouter();
+
+  if (roteiros.length === 0) {
+    return (
+      <View style={[styles.section, { marginBottom: r.scaleY(24) }]}>
+        <Text
+          style={[
+            styles.title,
+            { fontSize: r.font(18), marginBottom: r.scaleY(12), paddingHorizontal: r.scaleX(16) },
+          ]}
+        >
+          Roteiros relacionados
+        </Text>
+        <Text style={[styles.empty, { fontSize: r.font(14), paddingHorizontal: r.scaleX(16) }]}>
+          Nenhum roteiro relacionado a esta busca.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.section, { marginBottom: r.scaleY(24) }]}>
+      <Text
+        style={[
+          styles.title,
+          { fontSize: r.font(18), marginBottom: r.scaleY(12), paddingHorizontal: r.scaleX(16) },
+        ]}
+      >
+        Roteiros relacionados ({roteiros.length})
+      </Text>
+      <View style={styles.roteirosList}>
+        {roteiros.map((roteiro) => (
+          <TouchableOpacity
+            key={roteiro.id}
+            style={styles.roteiroRow}
+            activeOpacity={0.86}
+            onPress={() =>
+              router.push({
+                pathname: '/roteiro-detalhes',
+                params: { id: roteiro.id, origem: 'recomendado' },
+              })
+            }
+          >
+            <View style={styles.roteiroRowBody}>
+              <Text style={[styles.roteiroNome, { fontSize: r.font(15) }]} numberOfLines={1}>
+                {roteiro.nome}
+              </Text>
+              <Text style={[styles.roteiroMeta, { fontSize: r.font(12) }]} numberOfLines={1}>
+                {roteiro.cidades.join(' • ')}
+              </Text>
+            </View>
+            <View style={styles.roteiroBadges}>
+              <Text style={[styles.roteiroBadge, { fontSize: r.font(11) }]}>{roteiro.duracao}</Text>
+              <Text style={[styles.roteiroBadge, { fontSize: r.font(11) }]}>{roteiro.tipo}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreenContent({
   busca,
   resultadoBusca,
+  resultadoRoteiros = null,
   carregandoBusca = false,
   recomendadas,
   ultimas,
@@ -34,7 +101,9 @@ export default function HomeScreenContent({
 }: HomeScreenContentProps) {
   const insets = useSafeAreaInsets();
   const r = useResponsive();
-  const router = useRouter();
+
+  const buscaAtiva = resultadoBusca !== null || resultadoRoteiros !== null || carregandoBusca;
+  const totalResultadosBusca = (resultadoBusca?.length ?? 0) + (resultadoRoteiros?.length ?? 0);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -49,22 +118,38 @@ export default function HomeScreenContent({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {resultadoBusca !== null ? (
-          <HomeSection
-            title={`Resultados (${resultadoBusca.length})`}
-            data={resultadoBusca}
-            emptyText="Nenhuma cidade encontrada."
-          />
-        ) : carregandoBusca ? (
-          <HomeSection title="Buscando..." data={[]} emptyText="Filtrando cidades..." />
+        {carregandoBusca ? (
+          <HomeSection title="Buscando..." data={[]} emptyText="Refinando cidades e roteiros..." />
+        ) : buscaAtiva ? (
+          <>
+            {totalResultadosBusca === 0 ? (
+              <Text
+                style={[
+                  styles.empty,
+                  { fontSize: r.font(14), paddingHorizontal: r.scaleX(16), marginBottom: r.scaleY(24) },
+                ]}
+              >
+                Nenhum resultado encontrado para a busca informada.
+              </Text>
+            ) : (
+              <>
+                <HomeSection
+                  title={`Cidades encontradas (${resultadoBusca?.length ?? 0})`}
+                  data={resultadoBusca ?? []}
+                  emptyText="Nenhuma cidade encontrada."
+                />
+                <RoteiroSearchSection roteiros={resultadoRoteiros ?? []} />
+              </>
+            )}
+          </>
         ) : null}
 
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
         >
-          {categorias.map(cat => (
+          {categorias.map((cat) => (
             <TouchableOpacity
               key={cat}
               style={[
@@ -78,11 +163,11 @@ export default function HomeScreenContent({
               activeOpacity={0.8}
               onPress={() => onSelectCategoria?.(cat)}
             >
-              <Text 
+              <Text
                 style={[
-                  styles.categoryText, 
+                  styles.categoryText,
                   categoriaSelecionada === cat && styles.categoryTextActive,
-                  { fontSize: r.font(13) }
+                  { fontSize: r.font(13) },
                 ]}
               >
                 {cat}
@@ -117,6 +202,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {},
+  section: {},
+  title: {
+    color: Colors.textWhite,
+    fontWeight: '600',
+  },
+  empty: {
+    color: Colors.textGray,
+  },
   categoryScroll: {
     paddingHorizontal: 16,
     gap: 12,
@@ -141,5 +234,37 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: '#FFFFFF',
+  },
+  roteirosList: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  roteiroRow: {
+    backgroundColor: Colors.inputBackground,
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...Shadow.subtle,
+  },
+  roteiroRowBody: {
+    flex: 1,
+  },
+  roteiroNome: {
+    color: Colors.textDark,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  roteiroMeta: {
+    color: Colors.textGray,
+  },
+  roteiroBadges: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  roteiroBadge: {
+    color: Colors.primary,
+    fontWeight: '700',
   },
 });
