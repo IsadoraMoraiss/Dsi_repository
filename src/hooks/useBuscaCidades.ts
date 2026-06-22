@@ -17,7 +17,7 @@ function normalizar(texto: string): string {
 export function useBuscaCidades(
   cidades: CidadeDataset[],
   termo: string,
-  debounceMs = 300,
+  debounceMs = 180,
 ): UseBuscaCidadesResult {
   const [termoDebounced, setTermoDebounced] = useState(termo);
   const [carregando, setCarregando] = useState(false);
@@ -34,14 +34,30 @@ export function useBuscaCidades(
     return () => clearTimeout(timer);
   }, [termo, debounceMs]);
 
+  const cidadesIndexadas = useMemo(
+    () =>
+      cidades.map((cidade) => ({
+        cidade,
+        nomeSearchable: normalizar(cidade.nome),
+        secondarySearchable: normalizar(`${cidade.estado} ${cidade.regiao} ${cidade.regiaoTur ?? ''}`),
+      })),
+    [cidades],
+  );
+
   const cidadesFiltradas = useMemo(() => {
     const termoNormalizado = normalizar(termoDebounced.trim());
     if (!termoNormalizado) return cidades;
 
-    return cidades.filter((cidade) =>
-      normalizar(cidade.nome).includes(termoNormalizado),
-    );
-  }, [cidades, termoDebounced]);
+    const porNome = cidadesIndexadas
+      .filter(({ nomeSearchable }) => nomeSearchable.includes(termoNormalizado))
+      .map(({ cidade }) => cidade);
+
+    if (porNome.length > 0) return porNome;
+
+    return cidadesIndexadas
+      .filter(({ secondarySearchable }) => secondarySearchable.includes(termoNormalizado))
+      .map(({ cidade }) => cidade);
+  }, [cidades, cidadesIndexadas, termoDebounced]);
 
   return {
     cidadesFiltradas,

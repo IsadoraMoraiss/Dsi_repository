@@ -17,6 +17,46 @@ function normalize(text: string) {
     .toLowerCase();
 }
 
+function inferirClimaCidade(cidade: CidadeDataset): Cidade['clima'] {
+  const altitude = cidade.altitude ?? 0;
+  const regiao = normalize(String(cidade.regiao ?? ''));
+
+  if (altitude >= 800 || regiao === 'sul') return 'Frio';
+  if (regiao === 'norte' || regiao === 'nordeste') return 'Quente';
+  return 'Temperado';
+}
+
+function inferirEstilosCidade(cidade: CidadeDataset): string[] {
+  const estilos = new Set<string>();
+  const categorias = cidade.categorias ?? [];
+
+  categorias.forEach((categoria) => {
+    if (categoria === 'praia-litoral') estilos.add('Relaxamento');
+    if (categoria === 'natureza') estilos.add('Ecoturismo');
+    if (categoria === 'serras-montanha') estilos.add('Relaxamento');
+    if (categoria === 'termas-aguas') estilos.add('Relaxamento');
+    if (categoria === 'cultura-historico') estilos.add('Cultural');
+    if (categoria === 'aventura') estilos.add('Aventura');
+    if (categoria === 'gastronomia-vinhos') estilos.add('Gastronomia');
+    if (categoria === 'religioso-fe') estilos.add('Cultural');
+  });
+
+  if (estilos.size === 0) {
+    if (cidade.categoria === 'Praia') estilos.add('Relaxamento');
+    if (cidade.categoria === 'Natureza') estilos.add('Ecoturismo');
+    if (cidade.categoria === 'Cultura' || cidade.categoria === 'Histórico') estilos.add('Cultural');
+    if (cidade.categoria === 'Gastronomia') estilos.add('Gastronomia');
+  }
+
+  return Array.from(estilos).slice(0, 3);
+}
+
+function inferirEnergiaCidade(cidade: CidadeDataset): Cidade['energia'] {
+  if (cidade.capital || (cidade.populacaoEstimada ?? 0) > 1_000_000) return 'Intenso';
+  if ((cidade.populacaoEstimada ?? 0) > 150_000 || cidade.uber) return 'Moderado';
+  return 'Calmo';
+}
+
 export function formatPopulacao(pop: number | null | undefined): string {
   if (pop == null || !Number.isFinite(pop) || pop <= 0) return 'População não informada';
   if (pop >= 1_000_000) {
@@ -189,9 +229,9 @@ export function toCidadeLegacy(cidade: CidadeDataset): Cidade {
     categoria: cidade.categoria,
     categorias: cidade.categorias,
     imagemUrl: cidade.imagemUrl,
-    clima: 'Temperado',
-    energia: 'Moderado',
-    estilos: cidade.categorias ?? [],
+    clima: inferirClimaCidade(cidade),
+    energia: inferirEnergiaCidade(cidade),
+    estilos: inferirEstilosCidade(cidade),
     descricao: cidade.regiaoTur || cidade.categoria,
   };
 }

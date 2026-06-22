@@ -24,7 +24,7 @@ export default function HomeSearchHeader({
         <SearchBar
           value={busca}
           onChangeText={onChangeBusca}
-          placeholder="Pesquisar cidade..."
+          placeholder="Pesquisar cidade ou roteiro..."
           onSubmitEditing={onSubmitBusca}
         />
       </View>

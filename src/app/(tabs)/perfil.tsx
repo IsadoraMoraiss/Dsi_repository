@@ -67,6 +67,13 @@ export default function PerfilScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.replace('/(tabs)/explorar' as any)}
+          activeOpacity={0.75}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Perfil</Text>
       </View>
 
@@ -94,6 +101,7 @@ export default function PerfilScreen() {
         <MenuItem icon="event" label="Minha Agenda" onPress={() => router.push('/agenda')} />
         <MenuItem icon="checklist" label="Checklist" onPress={() => router.push('/checklist')} />
         <MenuItem icon="auto-awesome" label="Preferências" onPress={() => router.push('/perfil/preferencias')} />
+        <MenuItem icon="badge" label="Seja um guia" onPress={() => router.push('/perfil/seja-guia')} />
 
         <View style={styles.divider} />
 
@@ -106,6 +114,7 @@ export default function PerfilScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12 },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
   headerTitle: { color: Colors.textWhite, fontWeight: '700' },
   content: { paddingHorizontal: 28, paddingTop: 16 },
   topRow: { alignItems: 'flex-start', marginBottom: 20 },

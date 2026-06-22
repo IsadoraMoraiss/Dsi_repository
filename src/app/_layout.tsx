@@ -32,6 +32,7 @@ export default function RootLayout() {
           <Stack.Screen name="perfil/meu-perfil" />
           <Stack.Screen name="perfil/editar-perfil" />
           <Stack.Screen name="perfil/preferencias" />
+          <Stack.Screen name="perfil/seja-guia" />
           <Stack.Screen name="perfil/avaliacoes" />
           <Stack.Screen name="perfil/roteiros-favoritos" />
           <Stack.Screen name="perfil/configuracoes" />
@@ -47,4 +48,3 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
-

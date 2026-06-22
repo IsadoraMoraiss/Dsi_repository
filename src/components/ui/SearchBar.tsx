@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Radius } from '../../constants/Tokens';
 import { useResponsive } from '../../utils/responsive';
@@ -32,6 +32,20 @@ export default function SearchBar({
         onSubmitEditing={onSubmitEditing}
         returnKeyType="search"
       />
+      {value.length > 0 ? (
+        <TouchableOpacity
+          style={styles.clearBtn}
+          onPress={() => {
+            onChangeText('');
+            Keyboard.dismiss();
+          }}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Limpar busca"
+        >
+          <MaterialIcons name="close" size={r.scaleX(18)} color="rgba(255,255,255,0.85)" />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -47,5 +61,13 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.textWhite,
     height: '100%',
+  },
+  clearBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
 });

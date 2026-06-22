@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, Alert, ActivityIndicator } from 'react-native';
+import { useRef, useState } from 'react';
+import { Animated, Pressable, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
@@ -9,6 +9,7 @@ import AuthLinkAction from '../components/auth/components/AuthLinkAction';
 import AuthScreenLayout from '../components/auth/components/AuthScreenLayout';
 import FormField from '../components/auth/components/FormField';
 import CustomInput from '../components/ui/CustomInput';
+import FloatingToast from '../components/ui/FloatingToast';
 import PrimaryButton from '../components/ui/PrimaryButton';
 import { Colors } from '../constants/Colors';
 
@@ -28,6 +29,18 @@ export default function CadastroScreen() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [toastMessage, setToastMessage] = useState('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  function showToast(message: string) {
+    setToastMessage(message);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(2800),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }
 
   async function handleCadastro() {
     console.log('BOTÃO CADASTRO CLICADO');
@@ -81,8 +94,8 @@ export default function CadastroScreen() {
     // Importante: no React Native Web o callback do botao do Alert nao dispara,
     // entao navegamos antes/independente do Alert.
     if (!isFirebaseConfigured || !auth || !db) {
-      Alert.alert('Modo desenvolvimento', 'Cadastro simulado. Nenhuma conta real foi criada.');
-      router.replace('/verificacao');
+      showToast('Modo desenvolvimento: cadastro simulado.');
+      setTimeout(() => router.replace('/verificacao'), 800);
       return;
     }
 
@@ -114,11 +127,11 @@ export default function CadastroScreen() {
       let mensagem = 'Erro ao criar conta. Tente novamente.';
 
       if (contaCriada) {
-        mensagem =
-          'Sua conta foi criada, mas não foi possível concluir o envio do e-mail. ' +
-          'Tente fazer login para solicitar um novo link.';
+        mensagem = 'Conta criada, mas houve um problema no envio do e-mail. Faça login para solicitar um novo link.';
         try { await signOut(auth); } catch { }
-        router.replace('/login');
+        showToast(mensagem);
+        setTimeout(() => router.replace('/login'), 1500);
+        return;
       } else if (error.code === 'auth/email-already-in-use') {
         mensagem = 'Este e-mail já está cadastrado.';
       } else if (error.code === 'auth/invalid-email') {
@@ -129,7 +142,7 @@ export default function CadastroScreen() {
         mensagem = 'Verifique sua conexão com a internet.';
       }
 
-      Alert.alert('Erro', mensagem);
+      showToast(mensagem);
     } finally {
       setLoading(false);
     }
@@ -146,6 +159,7 @@ export default function CadastroScreen() {
         )
       }
       footerAction={<AuthLinkAction label="Já possui conta? Faça o Login" onPress={() => router.push('/login')} />}
+      overlay={<FloatingToast message={toastMessage} opacity={toastOpacity} />}
     >
       <FormField error={erroNome}>
         <CustomInput

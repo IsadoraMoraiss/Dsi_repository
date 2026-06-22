@@ -16,7 +16,13 @@ import { useAuth } from '../../context/AuthContext';
 import { listarRoteirosUsuario, UserRoteiro } from '../../services/roteiros';
 import { useResponsive } from '../../utils/responsive';
 
-function FavoritoCard({ roteiro }: { roteiro: UserRoteiro | Roteiro }) {
+function FavoritoCard({
+  roteiro,
+  onVerDetalhes,
+}: {
+  roteiro: UserRoteiro | Roteiro;
+  onVerDetalhes: (roteiro: UserRoteiro | Roteiro) => void;
+}) {
   const r = useResponsive();
   const cidadesStr = (roteiro.cidades ?? []).join(' → ');
   return (
@@ -33,7 +39,13 @@ function FavoritoCard({ roteiro }: { roteiro: UserRoteiro | Roteiro }) {
       </View>
       <View style={styles.favFooter}>
         <Text style={[styles.favKm, { fontSize: r.font(18) }]}>{(roteiro as any).distanciaKm ?? 0} Km</Text>
-        <TouchableOpacity style={styles.verDetalhesBtn}>
+        <TouchableOpacity
+          style={styles.verDetalhesBtn}
+          onPress={() => onVerDetalhes(roteiro)}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver detalhes de ${roteiro.nome}`}
+        >
           <Text style={[styles.verDetalhesText, { fontSize: r.font(12) }]}>Ver detalhes ▶</Text>
         </TouchableOpacity>
       </View>
@@ -50,6 +62,10 @@ export default function RoteirosFavoritosScreen() {
   const [roteiros, setRoteiros] = useState<UserRoteiro[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [filtro, setFiltro] = useState<'publicos' | 'privados' | 'salvos'>('publicos');
+
+  function handleVerDetalhes(roteiro: UserRoteiro | Roteiro) {
+    router.push({ pathname: '/roteiro-detalhes', params: { id: roteiro.id, origem: 'usuario' } });
+  }
 
   React.useEffect(() => {
     let ativo = true;
@@ -126,7 +142,9 @@ export default function RoteirosFavoritosScreen() {
         {carregando ? (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
         ) : filtrados.length > 0 ? (
-          filtrados.map((rt) => <FavoritoCard key={rt.id} roteiro={rt} />)
+          filtrados.map((rt) => (
+            <FavoritoCard key={rt.id} roteiro={rt} onVerDetalhes={handleVerDetalhes} />
+          ))
         ) : (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro encontrado.</Text>
         )}

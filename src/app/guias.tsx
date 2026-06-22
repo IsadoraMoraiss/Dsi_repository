@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
 import {
@@ -16,20 +16,48 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db } from '../services/firebase';
 import { Colors } from '../constants/Colors';
+import { guiasLocais } from '../data/mockGuias';
+
+function normalizar(texto: string | undefined | null) {
+    return (texto ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function guiaAtendeCidade(guia: any, cidade?: string) {
+    const alvo = normalizar(cidade);
+    if (!alvo) return false;
+
+    const cidades = [
+        ...(Array.isArray(guia.cidades) ? guia.cidades : []),
+        ...(Array.isArray(guia.cidadeNomes) ? guia.cidadeNomes : []),
+    ];
+
+    return cidades.some((nome) => normalizar(nome) === alvo);
+}
 
 export default function GuiasScreen() {
-    const { cidade } = useLocalSearchParams();
+    const router = useRouter();
+    const { cidade, cidadeId } = useLocalSearchParams();
+    const cidadeSelecionada = Array.isArray(cidade) ? cidade[0] : cidade;
+    const cidadeIdSelecionada = Array.isArray(cidadeId) ? cidadeId[0] : cidadeId;
 
     const [guias, setGuias] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [fotoSelecionada, setFotoSelecionada] = useState<string | null>(null);
     async function copiarTelefone(numero: string) {
+        if (!numero) return;
         await Clipboard.setStringAsync(numero);
         alert('Telefone copiado para a área de transferência!');
     }
 
     async function carregarGuias() {
+        const mocks = guiasLocais.filter((guia) => guiaAtendeCidade(guia, cidadeSelecionada));
+
         if (!db) {
+            setGuias(mocks);
             setLoading(false);
             return;
         }
@@ -47,15 +75,16 @@ export default function GuiasScreen() {
                     id: doc.id,
                     ...doc.data(),
                 }))
-                .filter((guia: any) =>
-                    guia.cidades?.includes(cidade)
-                );
-            console.log('Cidade recebida:', cidade);
+                .filter((guia: any) => guiaAtendeCidade(guia, cidadeSelecionada));
+            console.log('Cidade recebida:', cidadeSelecionada);
             console.log('Guias encontrados:', lista);
 
-            setGuias(lista);
+            const byId = new Map<string, any>();
+            [...mocks, ...lista].forEach((guia) => byId.set(guia.id, guia));
+            setGuias(Array.from(byId.values()));
         } catch (error) {
             console.log(error);
+            setGuias(mocks);
         } finally {
             setLoading(false);
         }
@@ -63,7 +92,18 @@ export default function GuiasScreen() {
 
     useEffect(() => {
         carregarGuias();
-    }, []);
+    }, [cidadeSelecionada]);
+
+    function voltarParaCidade() {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        if (cidadeIdSelecionada) {
+            router.replace({ pathname: '/detalhes-cidade', params: { id: cidadeIdSelecionada } });
+        }
+    }
 
     if (loading) {
         return (
@@ -78,12 +118,16 @@ export default function GuiasScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <TouchableOpacity style={styles.backHeaderBtn} onPress={voltarParaCidade} activeOpacity={0.75}>
+                <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
+                <Text style={styles.backHeaderText}>Voltar para cidade</Text>
+            </TouchableOpacity>
             <Text style={styles.title}>
                 Guias Turísticos
             </Text>
 
             <Text style={styles.subtitle}>
-                {cidade}
+                {cidadeSelecionada}
             </Text>
 
             <FlatList
@@ -125,11 +169,49 @@ export default function GuiasScreen() {
 
                                 <View style={styles.valueChip}>
                                     <Text style={styles.valueText}>
-                                        R$ {item.valor}/pessoa
+                                        R$ {item.valor}/{item.tipoCobranca === 'grupo' ? 'grupo' : 'pessoa'}
                                     </Text>
                                 </View>
                             </View>
                         </View>
+
+                        {item.codigoIdentificacao ? (
+                            <View style={styles.row}>
+                                <MaterialIcons
+                                    name="badge"
+                                    size={22}
+                                    color={Colors.primary}
+                                />
+
+                                <View style={styles.infoContainer}>
+                                    <Text style={styles.label}>Código de identificação</Text>
+
+                                    <View style={styles.valueChip}>
+                                        <Text style={styles.valueText}>
+                                            {item.codigoIdentificacao}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        {item.especializacao ? (
+                            <View style={styles.row}>
+                                <MaterialIcons
+                                    name="explore"
+                                    size={22}
+                                    color={Colors.primary}
+                                />
+
+                                <View style={styles.infoContainer}>
+                                    <Text style={styles.label}>Especialização</Text>
+
+                                    <Text style={styles.descricao}>
+                                        {item.especializacao}
+                                    </Text>
+                                </View>
+                            </View>
+                        ) : null}
 
                         <View style={styles.row}>
                             <MaterialIcons
@@ -235,6 +317,19 @@ const styles = StyleSheet.create({
     title: {
         color: Colors.textWhite,
         fontSize: 24,
+        fontWeight: '700',
+    },
+
+    backHeaderBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 8,
+        marginBottom: 12,
+    },
+
+    backHeaderText: {
+        color: Colors.textWhite,
         fontWeight: '700',
     },
 

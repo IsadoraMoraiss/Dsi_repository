@@ -101,6 +101,3 @@ export default function RedefinirScreen() {
     </AuthScreenLayout>
   );
 }
-    </AuthScreenLayout>
-  );
-}

@@ -264,6 +264,7 @@ export default function DetalhesCidadeScreen() {
                   pathname: '/guias',
                   params: {
                     cidade: nomeCidade,
+                    cidadeId: cidadeDataset?.id ?? cidadeMock?.id,
                   },
                 })
               }

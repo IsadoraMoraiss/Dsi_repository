@@ -71,10 +71,16 @@ function CityRow({ cidade, index, onRemove }: { cidade: string; index: number; o
   );
 }
 
-function SuggestionCard({ cidade }: { cidade: Cidade }) {
+function SuggestionCard({ cidade, onPress }: { cidade: Cidade; onPress: () => void }) {
   const r = useResponsive();
   return (
-    <View style={styles.suggestionCard}>
+    <TouchableOpacity
+      style={styles.suggestionCard}
+      onPress={onPress}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir perfil de ${cidade.nome}`}
+    >
       <View style={styles.suggestionIcon}>
         <MaterialIcons name="near-me" size={16} color={Colors.primary} />
       </View>
@@ -83,7 +89,7 @@ function SuggestionCard({ cidade }: { cidade: Cidade }) {
         <Text style={[styles.suggestionMeta, { fontSize: r.font(11) }]}>{cidade.categoria}</Text>
       </View>
       <MaterialIcons name="arrow-forward" size={16} color={Colors.textGray} />
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -221,7 +227,7 @@ export default function RoteiroDetalhesScreen() {
   }, [roteiro, roteiroDetalhadoCidades, todasCidades, cidadeIdsResolvidos]);
 
   async function handleRemoverCidade(index: number) {
-    if (!roteiro || !isDono || !roteiroUsuario) return;
+    if (!roteiro || !isCriadoPorMim || !roteiroUsuario) return;
 
     const cidadeId = roteiroUsuario.cidadeIds?.[index];
     const cidadeLabel = roteiroUsuario.cidades?.[index];
@@ -251,7 +257,7 @@ export default function RoteiroDetalhesScreen() {
   }
 
   async function handleDeletarRoteiro() {
-    if (!roteiroUsuario || !isDono) return;
+    if (!roteiroUsuario || !isCriadoPorMim) return;
 
     Alert.alert(
       'Deletar Roteiro',
@@ -305,6 +311,10 @@ export default function RoteiroDetalhesScreen() {
     }
   }
 
+  function handleAbrirCidade(cidade: Cidade) {
+    router.push({ pathname: '/detalhes-cidade', params: { id: cidade.id } });
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -349,7 +359,7 @@ export default function RoteiroDetalhesScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { fontSize: r.font(18) }]}>Detalhes do Roteiro</Text>
         <View style={{ marginLeft: 'auto', flexDirection: 'row', gap: 8 }}>
-          {isDono && (
+          {isCriadoPorMim && (
             <>
               <TouchableOpacity onPress={() => router.push(`/editar-roteiro?id=${roteiroId}`)}>
                 <MaterialIcons name="edit" size={24} color={Colors.textWhite} />
@@ -405,7 +415,7 @@ export default function RoteiroDetalhesScreen() {
               key={`${cidade}-${index}`}
               cidade={cidade}
               index={index}
-              onRemove={isDono ? () => handleRemoverCidade(index) : undefined}
+              onRemove={isCriadoPorMim ? () => handleRemoverCidade(index) : undefined}
             />
           ))
         ) : (
@@ -422,7 +432,7 @@ export default function RoteiroDetalhesScreen() {
               Cidades próximas à sua última parada
             </Text>
             {sugestoesDeProximas.map((cidade) => (
-              <SuggestionCard key={cidade.id} cidade={cidade} />
+              <SuggestionCard key={cidade.id} cidade={cidade} onPress={() => handleAbrirCidade(cidade)} />
             ))}
           </>
         )}

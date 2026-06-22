@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
+import { CORES_ROTEIRO } from '../constants/roteiroCores';
 import { Cidade } from '../data/mockCidades';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -23,14 +24,14 @@ import {
 } from '../services/roteiros';
 import {
   deleteSupabaseStorageFile,
-  uploadImageToSupabaseBucket,
-  isSupabaseConfigured as isSupabaseStorageConfigured,
+  isSupabaseConfigured,
+  uploadImageToSupabase,
 } from '../services/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { useResponsive } from '../utils/responsive';
 
 const todasCidadesJson = require('../data/cidades.json') as Cidade[];
-const CORES = ['#F59E0B', '#10B981', '#EF4444', '#3B82F6', '#8B5CF6', '#0891B2'];
+const CORES = CORES_ROTEIRO;
 const TEMAS = ['Praia', 'Natureza', 'Cultura', 'Histórico', 'Gastronomia', 'Aventura', 'Relaxamento', 'Esportes'];
 
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
@@ -126,6 +127,7 @@ export default function EditarRoteiroScreen() {
   const [descricao, setDescricao] = useState('');
   const [temasSelecionados, setTemasSelecionados] = useState<string[]>([]);
   const [cidadesSelecionadas, setCidadesSelecionadas] = useState<string[]>([]);
+  const [filtroCidade, setFiltroCidade] = useState('');
   const [corSelecionada, setCorSelecionada] = useState(CORES[0]);
   const [coverUrl, setCoverUrl] = useState('');
   const [initialCoverUrl, setInitialCoverUrl] = useState('');
@@ -151,6 +153,19 @@ export default function EditarRoteiroScreen() {
     () => cidadesSelecionadas.map((id) => cidadeMap.get(id)).filter((c): c is Cidade => Boolean(c)),
     [cidadesSelecionadas, cidadeMap]
   );
+
+  const cidadesFiltradas = useMemo(() => {
+    const termo = normalizeCityName(filtroCidade);
+    if (!termo) return [];
+
+    return todasCidades
+      .filter(
+        (cidade) =>
+          !cidadesSelecionadas.includes(cidade.id)
+          && `${normalizeCityName(cidade.nome)} ${normalizeCityName(cidade.estado)}`.includes(termo),
+      )
+      .slice(0, 12);
+  }, [cidadesSelecionadas, filtroCidade, todasCidades]);
 
   const trechosDistancia = useMemo(() => {
     return cidadesSelecionadasDetalhadas.slice(0, -1).map((cidade, index) => {
@@ -219,6 +234,11 @@ export default function EditarRoteiroScreen() {
     setCidadesSelecionadas((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function adicionarCidade(id: string) {
+    setCidadesSelecionadas((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setFiltroCidade('');
+  }
+
   function toggleTema(tema: string) {
     setTemasSelecionados((prev) =>
       prev.includes(tema) ? prev.filter((t) => t !== tema) : [...prev, tema]
@@ -270,25 +290,19 @@ export default function EditarRoteiroScreen() {
     try {
       let imagemUrlFinal: string | undefined = coverUrl;
       if (coverLocalUri) {
-        if (!isSupabaseStorageConfigured) {
-          Alert.alert('Supabase não configurado', 'A capa só pode ser enviada se SUPABASE estiver configurado no .env.');
-          setSalvando(false);
-          return;
-        }
-        if (!coverBase64) {
-          Alert.alert('Erro', 'Não foi possível obter os dados da imagem selecionada.');
+        if (!isSupabaseConfigured || !coverBase64 || !user) {
+          Alert.alert('Supabase não configurado', 'Configure o Supabase para enviar uma capa.');
           setSalvando(false);
           return;
         }
         setUploadingCover(true);
         try {
-          imagemUrlFinal = await uploadImageToSupabaseBucket(
+          imagemUrlFinal = await uploadImageToSupabase(
             'foto-capa-roteiro',
-            `roteiros/${user?.uid}/${Date.now()}-${nome.trim().replace(/[^a-zA-Z0-9]/g, '-')}.jpg`,
+            `roteiros/${user.uid}/${Date.now()}-${nome.trim().replace(/[^a-zA-Z0-9]/g, '-')}.jpg`,
             coverBase64,
           );
-        } catch (error) {
-          console.error('[editar-roteiro] upload capa falhou', error);
+        } catch (error: any) {
           Alert.alert('Erro', 'Não foi possível enviar a nova capa. Tente novamente.');
           setUploadingCover(false);
           setSalvando(false);
@@ -454,6 +468,40 @@ export default function EditarRoteiroScreen() {
         ) : (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhuma cidade adicionada.</Text>
         )}
+
+        <View style={styles.addCidadeBox}>
+          <View style={styles.searchRow}>
+            <MaterialIcons name="search" size={20} color={Colors.textGray} />
+            <TextInput
+              style={[styles.addCidadeInput, { fontSize: r.font(14) }]}
+              placeholder="Buscar cidade para adicionar..."
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={filtroCidade}
+              onChangeText={setFiltroCidade}
+              autoCapitalize="words"
+            />
+          </View>
+          {filtroCidade.trim().length > 0 && (
+            <View style={styles.cidadeResults}>
+              {cidadesFiltradas.map((cidade) => (
+                <TouchableOpacity
+                  key={cidade.id}
+                  style={styles.cidadeResult}
+                  onPress={() => adicionarCidade(cidade.id)}
+                  activeOpacity={0.75}
+                >
+                  <MaterialIcons name="add-circle-outline" size={20} color={Colors.primary} />
+                  <Text style={[styles.cidadeResultText, { fontSize: r.font(14) }]}>
+                    {cidade.nome}, {cidade.estado}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {cidadesFiltradas.length === 0 && (
+                <Text style={[styles.emptyText, { fontSize: r.font(13) }]}>Nenhuma cidade encontrada.</Text>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Distância */}
         <Text style={[styles.label, { fontSize: r.font(15), marginTop: 16 }]}>Distância estimada:</Text>
@@ -644,6 +692,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: { color: Colors.textGray },
+  addCidadeBox: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+  },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addCidadeInput: { flex: 1, color: Colors.textWhite, paddingVertical: 6 },
+  cidadeResults: { marginTop: 10, gap: 8 },
+  cidadeResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 42,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  cidadeResultText: { flex: 1, color: Colors.textWhite, fontWeight: '600' },
   metricBox: {
     backgroundColor: Colors.inputBackground,
     borderRadius: 14,
@@ -660,7 +729,7 @@ const styles = StyleSheet.create({
   metricNote: { color: Colors.textGray, marginTop: 4 },
   distanceList: { marginTop: 8, gap: 4 },
   distanceText: { color: Colors.textGray, lineHeight: 18 },
-  coresRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  coresRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
   corDot: { width: 28, height: 28, borderRadius: 14 },
   footer: {
     flexDirection: 'row',
