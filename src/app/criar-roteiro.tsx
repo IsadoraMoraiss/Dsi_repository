@@ -15,9 +15,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../constants/Colors';
+import { CORES_ROTEIRO } from '../constants/roteiroCores';
 import { Cidade } from '../data/mockCidades';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
-import { uploadImageToSupabaseBucket, isSupabaseConfigured as isSupabaseStorageConfigured } from '../services/supabase';
+import { isSupabaseConfigured, uploadImageToSupabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { criarRoteiroUsuario } from '../services/roteiros';
 import { useResponsive } from '../utils/responsive';
@@ -26,7 +27,7 @@ const todasCidadesJson = require('../data/cidades.json') as Cidade[];
 const TIPOS = ['Econômico', 'Conforto', 'Aventura'];
 const CLIMAS = ['Ensolarado', 'Frio', 'Chuvoso', 'Temperado'];
 const ENERGIAS = ['Calmo', 'Moderado', 'Intenso'];
-const CORES = ['#F59E0B', '#10B981', '#EF4444', '#3B82F6', '#8B5CF6', '#0891B2'];
+const CORES = CORES_ROTEIRO;
 
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   recife: { lat: -8.0476, lon: -34.877 },
@@ -250,23 +251,18 @@ export default function CriarRoteiroScreen() {
 
     let imagemUrl: string | undefined;
     if (coverLocalUri) {
-      if (!isSupabaseStorageConfigured) {
-        Alert.alert('Supabase não configurado', 'A capa só pode ser enviada se SUPABASE estiver configurado no .env.');
-        return;
-      }
-      if (!coverBase64) {
-        Alert.alert('Erro', 'Não foi possível obter os dados da imagem selecionada.');
+      if (!isSupabaseConfigured || !coverBase64) {
+        Alert.alert('Supabase não configurado', 'Configure o Supabase para enviar uma capa.');
         return;
       }
       setUploadingCover(true);
       try {
-        imagemUrl = await uploadImageToSupabaseBucket(
+        imagemUrl = await uploadImageToSupabase(
           'foto-capa-roteiro',
           `roteiros/${user.uid}/${Date.now()}-${nomeTrim.replace(/[^a-zA-Z0-9]/g, '-')}.jpg`,
           coverBase64,
         );
       } catch (error: any) {
-        console.error('[upload-capa]', error);
         Alert.alert('Erro', 'Não foi possível enviar a capa. Tente novamente.');
         setUploadingCover(false);
         return;
@@ -747,7 +743,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   corSelectorText: { color: Colors.textWhite },
-  coresRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
+  coresRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 4 },
   corDot: { width: 28, height: 28, borderRadius: 14 },
   privacidadeRow: { flexDirection: 'row', gap: 24, marginTop: 4 },
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

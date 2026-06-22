@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  InteractionManager,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +24,7 @@ import { roteirosRecomendados, Roteiro } from '../../data/mockRoteiros';
 import { useAuth } from '../../context/AuthContext';
 import { rankRoteirosByPreferences, UserPreferences } from '../../utils/preferences';
 import { useResponsive } from '../../utils/responsive';
+import { toCidadeLegacy } from '../../utils/cidadeDataset';
 import {
   buscarCopiaSalvaUsuario,
   buscarUltimosRoteiroVistos,
@@ -41,8 +43,6 @@ import {
 } from '../../utils/roteiroUtils';
 import { Cidade } from '../../data/mockCidades';
 
-const todasCidadesJson = require('../../data/cidades.json') as Cidade[];
-
 // ---------------------------------------------------------------------------
 // Componente de cartão de roteiro
 // ---------------------------------------------------------------------------
@@ -50,11 +50,13 @@ function RoteiroCard({
   roteiro,
   onNavigate,
   onFavoritoChange,
+  todasCidades,
 }: {
   roteiro: Roteiro;
   origem: 'usuario' | 'recomendado';
   onNavigate: (roteiro: Roteiro) => void;
   onFavoritoChange?: (roteiroId: string, favoritado: boolean) => void;
+  todasCidades: Cidade[];
 }) {
   const r = useResponsive();
   const { user } = useAuth();
@@ -63,7 +65,7 @@ function RoteiroCard({
   const ehCatalogo = ehRoteiroDaComunidade(roteiro);
   const isOwn = 'uid' in roteiro && (roteiro as any).uid === user?.uid;
   const corCard = ehCatalogo ? Colors.inputBackground : corDoRoteiro(roteiro);
-  const { detalhadas } = resolverCidadesDoRoteiro(roteiro, todasCidadesJson);
+  const { detalhadas } = resolverCidadesDoRoteiro(roteiro, todasCidades);
   const km = distanciaExibidaRoteiro(roteiro, detalhadas);
 
   useEffect(() => {
@@ -178,8 +180,29 @@ export default function RoteirosScreen() {
   const [busca, setBusca] = useState('');
   const [emAlta, setEmAlta] = useState<UserRoteiro[]>([]);
   const [ultimosVistos, setUltimosVistos] = useState<UserRoteiro[]>([]);
+  const [todasCidades, setTodasCidades] = useState<Cidade[]>([]);
   const [carregandoEmAlta, setCarregandoEmAlta] = useState(false);
   const [carregandoUltimos, setCarregandoUltimos] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    const task = InteractionManager.runAfterInteractions(() => {
+      import('../../data/cidadesDataset')
+        .then((module) => {
+          if (ativo) {
+            setTodasCidades(module.getAllCidadesDataset().map(toCidadeLegacy));
+          }
+        })
+        .catch((error) => {
+          console.warn('[roteiros] Nao foi possivel carregar cidades para distancias:', error);
+        });
+    });
+
+    return () => {
+      ativo = false;
+      task.cancel();
+    };
+  }, []);
 
   useEffect(() => {
     let ativo = true;
@@ -217,13 +240,16 @@ export default function RoteirosScreen() {
   );
 
   function normalizar(texto: string): string {
-    return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   }
 
   function filtrarPorBusca<T extends Roteiro>(lista: T[]): T[] {
     if (!busca.trim()) return lista;
     const termo = normalizar(busca.trim());
-    return lista.filter((rt) => normalizar(rt.nome).includes(termo));
+    return lista.filter((rt) => {
+      const textoBusca = normalizar(`${rt.nome} ${rt.tipo} ${(rt.cidades ?? []).join(' ')}`);
+      return textoBusca.includes(termo);
+    });
   }
 
   async function handleNavigateRoteiro(roteiro: Roteiro) {
@@ -245,15 +271,22 @@ export default function RoteirosScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={{ paddingHorizontal: 20, paddingTop: r.scaleY(12), paddingBottom: 8 }}>
-        <Text style={{ color: Colors.textWhite, fontSize: r.font(20), fontWeight: '700' }}>Roteiros</Text>
+      <View style={[styles.header, { paddingTop: r.scaleY(12) }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.replace('/(tabs)/explorar' as any)}
+          activeOpacity={0.75}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Roteiros</Text>
       </View>
 
       <View style={[styles.searchWrapper, { paddingTop: r.scaleY(8) }]}>
         <SearchBar
           value={busca}
           onChangeText={setBusca}
-          placeholder="Pesquisar roteiro..."
+          placeholder="Pesquisar roteiro ou cidade..."
         />
       </View>
 
@@ -266,7 +299,14 @@ export default function RoteirosScreen() {
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
         ) : filtradosEmAlta.length > 0 ? (
           filtradosEmAlta.map((rt) => (
-            <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} onFavoritoChange={() => {}} />
+            <RoteiroCard
+              key={rt.id}
+              roteiro={rt}
+              origem="recomendado"
+              onNavigate={handleNavigateRoteiro}
+              onFavoritoChange={() => {}}
+              todasCidades={todasCidades}
+            />
           ))
         ) : (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro em destaque ainda.</Text>
@@ -277,7 +317,13 @@ export default function RoteirosScreen() {
         <Text style={[styles.sectionTitle, { fontSize: r.font(18), marginTop: 20 }]}>Roteiros Recomendados</Text>
         {filtradosRecomendados.length > 0 ? (
           filtradosRecomendados.map((rt) => (
-            <RoteiroCard key={rt.id} roteiro={rt} origem="recomendado" onNavigate={handleNavigateRoteiro} />
+            <RoteiroCard
+              key={rt.id}
+              roteiro={rt}
+              origem="recomendado"
+              onNavigate={handleNavigateRoteiro}
+              todasCidades={todasCidades}
+            />
           ))
         ) : (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro recomendado alinhado com suas preferências.</Text>
@@ -288,7 +334,13 @@ export default function RoteirosScreen() {
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Carregando...</Text>
         ) : filtradosUltimos.length > 0 ? (
           filtradosUltimos.map((rt) => (
-            <RoteiroCard key={`${rt.id}-ultimo`} roteiro={rt} origem={rt.uid ? 'usuario' : 'recomendado'} onNavigate={handleNavigateRoteiro} />
+            <RoteiroCard
+              key={`${rt.id}-ultimo`}
+              roteiro={rt}
+              origem={rt.uid ? 'usuario' : 'recomendado'}
+              onNavigate={handleNavigateRoteiro}
+              todasCidades={todasCidades}
+            />
           ))
         ) : (
           <Text style={[styles.emptyText, { fontSize: r.font(14) }]}>Nenhum roteiro visualizado ainda.</Text>
@@ -300,6 +352,9 @@ export default function RoteirosScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 8 },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  headerTitle: { color: Colors.textWhite, fontWeight: '700' },
   searchWrapper: { paddingHorizontal: 20, paddingBottom: 12 },
   content: { paddingHorizontal: 20, paddingTop: 4 },
   sectionTitle: { color: Colors.textWhite, fontWeight: '700', marginBottom: 16 },
