@@ -5,10 +5,14 @@
  */
 
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
+  InteractionManager,
+  Keyboard,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,39 +27,51 @@ import CidadesMapView, {
   type MapRegion,
 } from '../../components/map/CidadesMapView';
 import { Colors } from '../../constants/Colors';
-import { getAllCidadesDataset } from '../../data/cidadesDataset';
-import {
-  FILTROS_MAPA_PADRAO,
-  type FiltroAmbienteMapa,
-  type FiltroInfraestruturaMapa,
-  type FiltrosMapa,
-} from '../../types/cidadeDataset';
+import type { FiltrosMapa } from '../../types/cidadeDataset';
 import type { CidadeDataset } from '../../types/cidadeDataset';
 import {
   filtrarCidadesMapa,
   formatPopulacao,
   gerarTagsCidade,
+  getGrupoInfraestrutura,
   limitarMarcadoresMapa,
+  POPULOSO_MAPA_THRESHOLD,
   toCidadeLegacy,
 } from '../../utils/cidadeDataset';
 import { useRecentViews } from '../../context/RecentViewsContext';
 import { useResponsive } from '../../utils/responsive';
 
-const AMBIENTE_FILTROS: FiltroAmbienteMapa[] = ['Todas', 'Urbano', 'Rural', 'Intermediário'];
-const INFRA_FILTROS: FiltroInfraestruturaMapa[] = ['Todas', 'Alta', 'Média', 'Básica'];
+type FiltroRapidoId =
+  | 'capitais'
+  | 'praias'
+  | 'historicas'
+  | 'natureza'
+  | 'alta-infra'
+  | 'com-hotel'
+  | 'populosas';
 
-const TOGGLE_FILTROS: {
-  key: keyof Pick<FiltrosMapa, 'populoso' | 'comHotel' | 'capitais' | 'comUber'>;
+const FILTROS_RAPIDOS: {
+  id: FiltroRapidoId;
   label: string;
   icon: keyof typeof MaterialIcons.glyphMap;
 }[] = [
-  { key: 'populoso', label: 'Populoso', icon: 'people' },
-  { key: 'comHotel', label: 'Com hotel', icon: 'hotel' },
-  { key: 'capitais', label: 'Capitais', icon: 'account-balance' },
-  { key: 'comUber', label: 'Com Uber', icon: 'directions-car' },
+  { id: 'capitais', label: 'Capitais', icon: 'account-balance' },
+  { id: 'praias', label: 'Praias', icon: 'beach-access' },
+  { id: 'historicas', label: 'Históricas', icon: 'museum' },
+  { id: 'natureza', label: 'Natureza', icon: 'park' },
+  { id: 'alta-infra', label: 'Alta infraestrutura', icon: 'star' },
+  { id: 'com-hotel', label: 'Com hotel', icon: 'hotel' },
+  { id: 'populosas', label: 'Mais populosas', icon: 'people' },
 ];
 
-const TODAS_CIDADES = getAllCidadesDataset();
+const FILTROS_SEM_RESTRICAO: FiltrosMapa = {
+  ambiente: 'Todas',
+  populoso: false,
+  infraestrutura: 'Todas',
+  comHotel: false,
+  capitais: false,
+  comUber: false,
+};
 
 const INITIAL_REGION: MapRegion = {
   latitude: -14.235,
@@ -68,26 +84,123 @@ function regionForCity(city: CidadeDataset): MapRegion {
   return { latitude: city.latitude, longitude: city.longitude, latitudeDelta: 0.18, longitudeDelta: 0.18 };
 }
 
+function distanciaKmEntre(
+  origem: Pick<MapRegion, 'latitude' | 'longitude'>,
+  destino: Pick<MapRegion, 'latitude' | 'longitude'>,
+) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(destino.latitude - origem.latitude);
+  const dLon = toRad(destino.longitude - origem.longitude);
+  const lat1 = toRad(origem.latitude);
+  const lat2 = toRad(destino.latitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function encontrarCidadeMaisProxima(
+  cidades: CidadeDataset[],
+  latitude: number,
+  longitude: number,
+) {
+  return cidades.reduce<CidadeDataset | null>((maisProxima, cidade) => {
+    if (!maisProxima) return cidade;
+
+    const distanciaAtual = distanciaKmEntre({ latitude, longitude }, cidade);
+    const menorDistancia = distanciaKmEntre({ latitude, longitude }, maisProxima);
+    return distanciaAtual < menorDistancia ? cidade : maisProxima;
+  }, null);
+}
+
+function normalizarMapa(texto: string | undefined | null) {
+  return (texto ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function cidadeTemTag(cidade: CidadeDataset, tag: string) {
+  const alvo = normalizarMapa(tag);
+  return gerarTagsCidade(cidade).some((item) => normalizarMapa(item).includes(alvo));
+}
+
+function aplicarFiltroRapido(cidades: CidadeDataset[], filtro: FiltroRapidoId | null) {
+  if (!filtro) return cidades;
+
+  return cidades.filter((cidade) => {
+    if (filtro === 'capitais') return cidade.capital;
+    if (filtro === 'praias') return cidadeTemTag(cidade, 'litoral') || cidade.categorias?.includes('praia-litoral');
+    if (filtro === 'historicas') return cidadeTemTag(cidade, 'historico') || cidade.categorias?.includes('cultura-historico');
+    if (filtro === 'natureza') return cidadeTemTag(cidade, 'natureza') || cidade.categorias?.includes('natureza');
+    if (filtro === 'alta-infra') return getGrupoInfraestrutura(cidade.categoriaTur) === 'Alta';
+    if (filtro === 'com-hotel') return (cidade.hoteis ?? 0) > 0;
+    if (filtro === 'populosas') return (cidade.populacaoEstimada ?? 0) > POPULOSO_MAPA_THRESHOLD;
+    return true;
+  });
+}
+
 export default function MapaScreen() {
   const router = useRouter();
   const r = useResponsive();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<CidadesMapViewHandle | null>(null);
   const { addRecentCidade } = useRecentViews();
-  const [filtros, setFiltros] = useState<FiltrosMapa>(FILTROS_MAPA_PADRAO);
+  const [filtroRapido, setFiltroRapido] = useState<FiltroRapidoId | null>('capitais');
   const [busca, setBusca] = useState('');
+  const [todasCidades, setTodasCidades] = useState<CidadeDataset[]>([]);
+  const [carregandoCidades, setCarregandoCidades] = useState(true);
   const [selectedCity, setSelectedCity] = useState<CidadeDataset | null>(null);
+  const [localizando, setLocalizando] = useState(false);
 
-  const { cidadesFiltradas, cidadesNoMapa, mapaLimitado, totalFiltradas } = useMemo(() => {
-    const filtradas = filtrarCidadesMapa(TODAS_CIDADES, filtros, busca);
+  useEffect(() => {
+    let ativo = true;
+    const task = InteractionManager.runAfterInteractions(() => {
+      import('../../data/cidadesDataset')
+        .then((module) => {
+          if (ativo) setTodasCidades(module.getAllCidadesDataset());
+        })
+        .catch((error) => {
+          console.warn('[mapa] Nao foi possivel carregar cidades:', error);
+        })
+        .finally(() => {
+          if (ativo) setCarregandoCidades(false);
+        });
+    });
+
+    return () => {
+      ativo = false;
+      task.cancel();
+    };
+  }, []);
+
+  const {
+    cidadesFiltradas,
+    cidadesNoMapa,
+    mapaLimitado,
+    totalFiltradas,
+    buscaForaDosFiltros,
+  } = useMemo(() => {
+    const termoBusca = busca.trim();
+    const base = filtrarCidadesMapa(todasCidades, FILTROS_SEM_RESTRICAO, termoBusca);
+    const filtradasComSugestao = aplicarFiltroRapido(base, filtroRapido);
+    const buscaDireta = Boolean(termoBusca);
+    const filtradas = buscaDireta ? base : filtradasComSugestao;
     const { exibidas, totalFiltradas: total, limitado } = limitarMarcadoresMapa(filtradas);
-    return { cidadesFiltradas: filtradas, cidadesNoMapa: exibidas, mapaLimitado: limitado, totalFiltradas: total };
-  }, [filtros, busca]);
+    return {
+      cidadesFiltradas: filtradas,
+      cidadesNoMapa: exibidas,
+      mapaLimitado: limitado,
+      totalFiltradas: total,
+      buscaForaDosFiltros: buscaDireta && filtroRapido !== null && base.length > filtradasComSugestao.length,
+    };
+  }, [filtroRapido, busca, todasCidades]);
 
   useEffect(() => {
     if (!selectedCity && cidadesFiltradas.length > 0) {
-      const recife = cidadesFiltradas.find((c) => c.nome === 'Recife');
-      setSelectedCity(recife ?? cidadesFiltradas[0]);
+      const brasilia = cidadesFiltradas.find((c) => normalizarMapa(c.nome) === 'brasilia');
+      setSelectedCity(brasilia ?? cidadesFiltradas[0]);
     }
   }, [cidadesFiltradas, selectedCity]);
 
@@ -102,29 +215,26 @@ export default function MapaScreen() {
     [selectedCity],
   );
 
+  const cidadesRenderizadasNoMapa = useMemo(() => {
+    if (!selectedCity || cidadesNoMapa.some((cidade) => cidade.id === selectedCity.id)) {
+      return cidadesNoMapa;
+    }
+
+    return [...cidadesNoMapa, selectedCity];
+  }, [cidadesNoMapa, selectedCity]);
+
   function focusCity(city: CidadeDataset) {
     setSelectedCity(city);
     mapRef.current?.animateToRegion(regionForCity(city), 450);
   }
 
-  function setFiltro<K extends keyof FiltrosMapa>(key: K, value: FiltrosMapa[K]) {
-    setFiltros((prev) => {
-      const next = { ...prev, [key]: value };
-      if (key === 'ambiente' && value !== 'Todas' && value !== 'Urbano') next.capitais = false;
-      return next;
-    });
-  }
-
-  function toggleFiltro(key: 'populoso' | 'comHotel' | 'capitais' | 'comUber') {
-    setFiltros((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      if (key === 'comUber' && next.comUber) next.capitais = false;
-      return next;
-    });
-  }
-
   function limparFiltros() {
-    setFiltros(FILTROS_MAPA_PADRAO);
+    setFiltroRapido('capitais');
+    setBusca('');
+  }
+
+  function verTodas() {
+    setFiltroRapido(null);
     setBusca('');
   }
 
@@ -134,10 +244,56 @@ export default function MapaScreen() {
     router.push({ pathname: '/detalhes-cidade', params: { id: selectedCity.id } });
   }
 
+  async function handleLocalizarUsuario() {
+    if (localizando) return;
+
+    setLocalizando(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== Location.PermissionStatus.GRANTED) {
+        Alert.alert(
+          'Localizacao desativada',
+          'Permita o acesso a localizacao para centralizar o mapa na sua cidade.',
+        );
+        return;
+      }
+
+      const posicao = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = posicao.coords;
+      const cidadeAtual = encontrarCidadeMaisProxima(todasCidades, latitude, longitude);
+
+      if (!cidadeAtual) {
+        mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 0.18, longitudeDelta: 0.18 }, 450);
+        return;
+      }
+
+      setBusca('');
+      setFiltroRapido(null);
+      setSelectedCity(cidadeAtual);
+      mapRef.current?.animateToRegion(regionForCity(cidadeAtual), 450);
+    } catch (error) {
+      console.warn('[mapa:localizacao]', error);
+      Alert.alert('Nao foi possivel localizar', 'Verifique se o GPS esta ativo e tente novamente.');
+    } finally {
+      setLocalizando(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.topBar}>
-        <Text style={[styles.mapHeaderTitle, { fontSize: r.font(16) }]}>Explorar Mapa</Text>
+        <View style={styles.mapHeaderRow}>
+          <TouchableOpacity
+            style={styles.mapBackBtn}
+            onPress={() => router.replace('/(tabs)/explorar' as any)}
+            activeOpacity={0.75}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={Colors.textDark} />
+          </TouchableOpacity>
+          <Text style={[styles.mapHeaderTitle, { fontSize: r.font(16) }]}>Explorar Mapa</Text>
+        </View>
         <View style={styles.searchBar}>
           <TextInput
             style={[styles.searchInput, { fontSize: r.font(14) }]}
@@ -146,50 +302,35 @@ export default function MapaScreen() {
             value={busca}
             onChangeText={setBusca}
           />
+          {busca.length > 0 ? (
+            <TouchableOpacity
+              style={styles.clearSearchBtn}
+              onPress={() => {
+                setBusca('');
+                Keyboard.dismiss();
+              }}
+              activeOpacity={0.75}
+            >
+              <MaterialIcons name="close" size={18} color={Colors.textGray} />
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
-            style={styles.locationBtn}
-            onPress={() => selectedCity && focusCity(selectedCity)}
-            disabled={!selectedCity}
+            style={[styles.locationBtn, localizando && styles.locationBtnLoading]}
+            onPress={handleLocalizarUsuario}
+            disabled={localizando}
           >
-            <MaterialIcons name="my-location" size={20} color={Colors.primary} />
+            <MaterialIcons name="my-location" size={20} color={localizando ? Colors.textGray : Colors.primary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {AMBIENTE_FILTROS.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.filterChip, filtros.ambiente === f && styles.filterChipActive]}
-              onPress={() => setFiltro('ambiente', f)}
-            >
-              <Text style={[styles.filterText, filtros.ambiente === f && styles.filterTextActive]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {INFRA_FILTROS.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[styles.filterChip, filtros.infraestrutura === f && styles.filterChipActive]}
-              onPress={() => setFiltro('infraestrutura', f)}
-            >
-              <MaterialIcons name="star" size={14} color={filtros.infraestrutura === f ? Colors.primary : Colors.textGray} />
-              <Text style={[styles.filterText, filtros.infraestrutura === f && styles.filterTextActive]}>
-                {f === 'Todas' ? 'Infra: Todas' : `Infra: ${f}`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-          {TOGGLE_FILTROS.map(({ key, label, icon }) => {
-            const active = filtros[key];
+          {FILTROS_RAPIDOS.map(({ id, label, icon }) => {
+            const active = filtroRapido === id;
             return (
               <TouchableOpacity
-                key={key}
+                key={id}
                 style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => toggleFiltro(key)}
+                onPress={() => setFiltroRapido(active ? null : id)}
               >
                 <MaterialIcons name={icon} size={14} color={active ? Colors.primary : Colors.textGray} />
                 <Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text>
@@ -197,6 +338,21 @@ export default function MapaScreen() {
             );
           })}
         </ScrollView>
+
+        <View style={styles.mapActionsRow}>
+          <TouchableOpacity style={styles.mapActionBtn} onPress={verTodas} activeOpacity={0.75}>
+            <MaterialIcons name="public" size={15} color={Colors.primary} />
+            <Text style={styles.mapActionText}>Ver todas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.mapActionBtn} onPress={limparFiltros} activeOpacity={0.75}>
+            <MaterialIcons name="filter-list-off" size={15} color={Colors.primary} />
+            <Text style={styles.mapActionText}>Limpar filtros</Text>
+          </TouchableOpacity>
+        </View>
+
+        {buscaForaDosFiltros ? (
+          <Text style={styles.searchHint}>Resultado exibido fora dos filtros atuais.</Text>
+        ) : null}
 
         {mapaLimitado ? (
           <Text style={styles.limitHint}>
@@ -210,7 +366,7 @@ export default function MapaScreen() {
       <View style={styles.mapArea}>
         <CidadesMapView
           ref={mapRef}
-          cidades={cidadesNoMapa}
+          cidades={cidadesRenderizadasNoMapa}
           selectedCityId={selectedCity?.id}
           initialRegion={INITIAL_REGION}
           onSelectCity={focusCity}
@@ -246,7 +402,11 @@ export default function MapaScreen() {
         </View>
       ) : (
         <View style={[styles.cityCard, styles.cityCardEmpty, { paddingBottom: insets.bottom + 80 }]}>
-          <Text style={styles.emptyText}>Nenhuma cidade encontrada com os filtros atuais.</Text>
+          <Text style={styles.emptyText}>
+            {carregandoCidades
+              ? 'Carregando cidades no mapa...'
+              : 'Nenhuma cidade encontrada com os filtros atuais.'}
+          </Text>
         </View>
       )}
     </SafeAreaView>
@@ -255,7 +415,9 @@ export default function MapaScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F0F0' },
-  mapHeaderTitle: { color: Colors.textDark, fontWeight: '700', marginBottom: 10 },
+  mapHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  mapBackBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+  mapHeaderTitle: { color: Colors.textDark, fontWeight: '700' },
   topBar: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
@@ -275,7 +437,16 @@ const styles = StyleSheet.create({
     gap: 8, marginBottom: 8,
   },
   searchInput: { flex: 1, color: Colors.textDark },
+  clearSearchBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   locationBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+  locationBtnLoading: { opacity: 0.7 },
   filterScroll: { marginBottom: 6, maxHeight: 40 },
   filterChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -286,6 +457,20 @@ const styles = StyleSheet.create({
   filterChipActive: { borderColor: Colors.primary, backgroundColor: 'rgba(121,116,231,0.08)' },
   filterText: { color: Colors.textGray, fontSize: 13 },
   filterTextActive: { color: Colors.primary, fontWeight: '600' },
+  mapActionsRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  mapActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#FFFFFF',
+  },
+  mapActionText: { color: Colors.primary, fontWeight: '700', fontSize: 12 },
+  searchHint: { color: Colors.primary, fontSize: 11, fontWeight: '700', marginTop: 2 },
   limitHint: { color: Colors.textGray, fontSize: 11, marginTop: 2, marginBottom: 4 },
   mapArea: { flex: 1, backgroundColor: '#DDE5EE', position: 'relative' },
   filterFab: {
