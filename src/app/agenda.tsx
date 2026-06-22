@@ -83,6 +83,7 @@ export default function AgendaScreen() {
   // Modal
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [titulo, setTitulo] = useState('');
   const [horario, setHorario] = useState('');
   const [local, setLocal] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -141,7 +142,7 @@ export default function AgendaScreen() {
     console.log('[AgendaScreen] selectedDate:', selectedDate, '| total items:', items.length);
     const filtered = items
       .filter(i => i.data === selectedDate)
-      .sort((a, b) => a.horario.localeCompare(b.horario));
+      .sort((a, b) => (a.horario || '99:99').localeCompare(b.horario || '99:99'));
     console.log('[AgendaScreen] eventosDoDia count:', filtered.length);
     return filtered;
   }, [items, selectedDate]);
@@ -170,6 +171,7 @@ export default function AgendaScreen() {
   const openModal = (item?: AgendaItem) => {
     if (item) {
       setEditingId(item.id);
+      setTitulo(item.titulo ?? item.local);
       setHorario(item.horario);
       setLocal(item.local);
       setBuscaCidade(item.local);
@@ -177,6 +179,7 @@ export default function AgendaScreen() {
     }
     else {
       setEditingId(null);
+      setTitulo('');
       setHorario('');
       setLocal('');
       setDescricao('');
@@ -190,6 +193,7 @@ export default function AgendaScreen() {
     Keyboard.dismiss();
     setModalVisible(false);
     setEditingId(null);
+    setTitulo('');
     setHorario('');
     setLocal('');
     setDescricao('');
@@ -199,48 +203,67 @@ export default function AgendaScreen() {
 
   const handleSave = async () => {
     if (!user) return;
-    if (!local.trim()) {
+
+    const tituloNormalizado = titulo.trim();
+    const horarioNormalizado = horario.trim();
+    const localNormalizado = local.trim();
+    const descricaoNormalizada = descricao.trim();
+
+    if (!tituloNormalizado) {
+      Alert.alert('Atenção', 'Informe o título do evento.');
+      return;
+    }
+    if (!localNormalizado) {
       Alert.alert('Atenção', 'Selecione uma cidade da lista.');
       return;
     }
-    if (!horario.trim() || !local.trim()) {
-      Alert.alert('Atenção', 'Horário e local são obrigatórios.');
-      return;
-    }
-    const [hora, minuto] = horario.split(':');
+    if (horarioNormalizado) {
+      const [hora, minuto] = horarioNormalizado.split(':');
 
-    const horaNum = Number(hora);
-    const minutoNum = Number(minuto);
+      const horaNum = Number(hora);
+      const minutoNum = Number(minuto);
 
-    if (
-      horario.length !== 5 ||
-      isNaN(horaNum) ||
-      isNaN(minutoNum) ||
-      horaNum < 0 ||
-      horaNum > 23 ||
-      minutoNum < 0 ||
-      minutoNum > 59
-    ) {
-      Alert.alert(
-        'Horário inválido',
-        'Digite um horário válido no formato HH:MM'
-      );
-      return;
+      if (
+        horarioNormalizado.length !== 5 ||
+        isNaN(horaNum) ||
+        isNaN(minutoNum) ||
+        horaNum < 0 ||
+        horaNum > 23 ||
+        minutoNum < 0 ||
+        minutoNum > 59
+      ) {
+        Alert.alert(
+          'Horário inválido',
+          'Digite um horário válido no formato HH:MM ou deixe o campo vazio.'
+        );
+        return;
+      }
     }
     setIsSaving(true);
     try {
       if (editingId) {
         await atualizarAgenda(editingId, {
-          horario: horario.trim(),
-          local: local.trim(),
-          descricao: descricao.trim(),
+          titulo: tituloNormalizado,
+          horario: horarioNormalizado,
+          local: localNormalizado,
+          descricao: descricaoNormalizada,
         });
-        // Reagendar notificações com os novos dados
         await cancelarNotificacoesAgenda(editingId);
-        await agendarNotificacoesAgenda(editingId, local.trim(), selectedDate, horario.trim());
+        if (horarioNormalizado) {
+          await agendarNotificacoesAgenda(editingId, tituloNormalizado, selectedDate, horarioNormalizado);
+        }
       } else {
-        const created = await criarAgenda(user.uid, selectedDate, horario.trim(), local.trim(), descricao.trim());
-        await agendarNotificacoesAgenda(created.id, local.trim(), selectedDate, horario.trim());
+        const created = await criarAgenda(
+          user.uid,
+          selectedDate,
+          tituloNormalizado,
+          horarioNormalizado,
+          localNormalizado,
+          descricaoNormalizada,
+        );
+        if (horarioNormalizado) {
+          await agendarNotificacoesAgenda(created.id, tituloNormalizado, selectedDate, horarioNormalizado);
+        }
       }
       await fetchItems();
       closeModal();
@@ -261,10 +284,11 @@ export default function AgendaScreen() {
   const renderEvento = ({ item }: { item: AgendaItem }) => (
     <TouchableOpacity style={styles.itemCard} onPress={() => openModal(item)} activeOpacity={0.85}>
       <View style={styles.timeBox}>
-        <Text style={[styles.timeText, { fontSize: r.font(15) }]}>{item.horario}</Text>
+        <Text style={[styles.timeText, { fontSize: r.font(15) }]}>{item.horario || '--:--'}</Text>
       </View>
       <View style={styles.itemContent}>
-        <Text style={[styles.itemLocal, { fontSize: r.font(15) }]}>{item.local}</Text>
+        <Text style={[styles.itemTitle, { fontSize: r.font(15) }]}>{item.titulo || item.local}</Text>
+        <Text style={[styles.itemLocal, { fontSize: r.font(13) }]}>{item.local}</Text>
         {item.descricao ? (
           <Text style={[styles.itemDesc, { fontSize: r.font(13) }]}>{item.descricao}</Text>
         ) : null}
@@ -378,21 +402,15 @@ export default function AgendaScreen() {
               </Text>
             </View>
 
-            {/* Horário */}
-            <Text style={styles.inputLabel}>Horário *</Text>
+            {/* Título */}
+            <Text style={styles.inputLabel}>Título *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex: 09:00"
+              placeholder="Ex: Visita ao museu"
               placeholderTextColor="rgba(18,13,38,0.4)"
-              value={horario}
-              onChangeText={text => {
-                // Mascara simples HH:MM
-                const nums = text.replace(/\D/g, '').slice(0, 4);
-                if (nums.length <= 2) setHorario(nums);
-                else setHorario(`${nums.slice(0, 2)}:${nums.slice(2)}`);
-              }}
-              keyboardType="numeric"
-              maxLength={5}
+              value={titulo}
+              onChangeText={setTitulo}
+              maxLength={80}
             />
 
             {/* Cidade */}
@@ -444,6 +462,22 @@ export default function AgendaScreen() {
                 ))}
               </ScrollView>
             )}
+
+            {/* Horário */}
+            <Text style={styles.inputLabel}>Horário</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: 09:00 (opcional)"
+              placeholderTextColor="rgba(18,13,38,0.4)"
+              value={horario}
+              onChangeText={text => {
+                const nums = text.replace(/\D/g, '').slice(0, 4);
+                if (nums.length <= 2) setHorario(nums);
+                else setHorario(`${nums.slice(0, 2)}:${nums.slice(2)}`);
+              }}
+              keyboardType="numeric"
+              maxLength={5}
+            />
 
             {/* Descrição */}
             <Text style={styles.inputLabel}>Descrição</Text>
@@ -541,7 +575,8 @@ const styles = StyleSheet.create({
   },
   timeText: { color: Colors.primary, fontWeight: '700' },
   itemContent: { flex: 1 },
-  itemLocal: { color: Colors.textDark, fontWeight: '600' },
+  itemTitle: { color: Colors.textDark, fontWeight: '700' },
+  itemLocal: { color: Colors.textGray, marginTop: 2 },
   itemDesc: { color: Colors.textGray, marginTop: 4, lineHeight: 18 },
   deleteButton: { padding: 4 },
 
