@@ -35,6 +35,9 @@ function ChipGroup({ title, options, selected, onToggle }: ChipGroupProps) {
               onPress={() => onToggle(opt)}
               activeOpacity={0.7}
             >
+              {active && (
+                <MaterialIcons name="check" size={r.font(16)} color="#FFFFFF" style={{ marginRight: 6 }} />
+              )}
               <Text style={[styles.chipText, { fontSize: r.font(14) }, active && styles.chipTextActive]}>
                 {opt}
               </Text>
@@ -106,12 +109,16 @@ export default function PreferenciasScreen() {
     }
   }
 
+  const primeiraVez = !userData?.preferenciasConcluidas;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={[styles.header, { paddingTop: r.scaleY(8) }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
-        </TouchableOpacity>
+        {!primeiraVez && (
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <MaterialIcons name="arrow-back" size={24} color={Colors.textWhite} />
+          </TouchableOpacity>
+        )}
         <Text style={[styles.headerTitle, { fontSize: r.font(20) }]}>Preferências de Viagem</Text>
       </View>
 
@@ -173,19 +180,21 @@ const styles = StyleSheet.create({
   groupTitle: { color: Colors.textWhite, fontWeight: '700', marginBottom: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 30,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'transparent',
   },
   chipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: 'rgba(121,116,231,0.2)',
+    borderColor: '#A9A4FF',
+    backgroundColor: Colors.primary,
   },
-  chipText: { color: Colors.textGray, fontWeight: '500' },
-  chipTextActive: { color: Colors.primary },
+  chipText: { color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
+  chipTextActive: { color: '#FFFFFF', fontWeight: '800' },
   saveBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 30,

@@ -17,15 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { updateProfile } from 'firebase/auth';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
-import { db, isFirebaseConfigured, storage } from '../../services/firebase';
+import { db, isFirebaseConfigured } from '../../services/firebase';
 import {
   deleteSupabaseStorageFile,
-  uploadImageToSupabaseBucket,
-  isSupabaseConfigured as isSupabaseStorageConfigured,
+  uploadImageToSupabase,
 } from '../../services/supabase';
 import { salvarPerfilUsuario } from '../../services/usuarios';
 import { useResponsive } from '../../utils/responsive';
@@ -118,21 +116,10 @@ export default function EditarPerfilScreen() {
     setAvatarUrl(uri);
   }
 
-  async function fazerUploadAvatar(uri: string | null, base64: string | null, uid: string): Promise<string> {
-    if (isSupabaseStorageConfigured) {
-      if (!base64) throw new Error('Dados da imagem não disponíveis para upload.');
-      const filename = `${Date.now()}-avatar.jpg`;
-      return uploadImageToSupabaseBucket('foto-perfil', `usuarios/${uid}/${filename}`, base64);
-    }
-
-    if (!uri) throw new Error('URI da imagem não disponível para upload.');
-    if (!storage) throw new Error('Firebase Storage não configurado.');
-    const response = await fetch(uri);
-    const blob = await response.blob();
+  async function fazerUploadAvatar(base64: string | null, uid: string): Promise<string> {
+    if (!base64) throw new Error('Dados da imagem não disponíveis para upload.');
     const filename = `${Date.now()}-avatar.jpg`;
-    const storageRef = ref(storage, `avatares/${uid}/${filename}`);
-    await uploadBytes(storageRef, blob);
-    return getDownloadURL(storageRef);
+    return uploadImageToSupabase('foto-perfil', `usuarios/${uid}/${filename}`, base64);
   }
 
   async function handleExcluirAvatar() {
@@ -170,7 +157,7 @@ export default function EditarPerfilScreen() {
 
       if (avatarLocalUri) {
         setEnviandoAvatar(true);
-        urlFinal = await fazerUploadAvatar(avatarLocalUri, avatarBase64, user.uid);
+        urlFinal = await fazerUploadAvatar(avatarBase64, user.uid);
         setEnviandoAvatar(false);
         setAvatarUrl(urlFinal);
       } else if (avatarDeleted) {
@@ -187,7 +174,6 @@ export default function EditarPerfilScreen() {
       await refreshUserData();
       router.back();
     } catch (error: any) {
-      console.error('[editar-perfil]', error);
       setEnviandoAvatar(false);
       Alert.alert('Erro', 'Não foi possível salvar as alterações. Tente novamente.');
     } finally {
