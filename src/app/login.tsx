@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { Animated, Pressable, ActivityIndicator } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -132,15 +132,12 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       let mensagem = 'Erro ao fazer login. Tente novamente.';
-      let usarToast = false;
-      let oferecerCadastro = false;
 
       switch (error.code) {
         case 'auth/invalid-credential':
         case 'auth/user-not-found':
         case 'auth/wrong-password':
-          mensagem = 'Conta não encontrada ou senha incorreta. Redirecionando para o cadastro.';
-          oferecerCadastro = true;
+          mensagem = 'Usuário ou senha inválidos.';
           break;
         case 'auth/invalid-email':
           mensagem = 'Informe um e-mail válido.';
@@ -153,23 +150,7 @@ export default function LoginScreen() {
           break;
       }
 
-      if (oferecerCadastro) {
-        Alert.alert(
-          'Não foi possível entrar',
-          'Esta conta pode não existir ou a senha está incorreta.',
-          [
-            { text: 'Tentar novamente', style: 'cancel' },
-            {
-              text: 'Criar conta',
-              onPress: () => router.replace({ pathname: '/cadastro', params: { email: emailTrim } }),
-            },
-          ],
-        );
-      } else if (usarToast) {
-        showToast(mensagem);
-      } else {
-        Alert.alert('Erro', mensagem);
-      }
+      showToast(mensagem);
     } finally {
       setLoading(false);
     }
