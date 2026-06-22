@@ -23,6 +23,20 @@ const MAX_HOTEIS = 500;
 const MAX_LEITOS = 10_000;
 const MAX_AGENCIAS = 300;
 
+function clamp(value: number, min = 0, max = 100): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function categoriaTuristicaScore(categoriaTur?: string | null): number {
+  const categoria = categoriaTur?.trim().toUpperCase();
+  if (categoria === 'A') return 100;
+  if (categoria === 'B') return 80;
+  if (categoria === 'C') return 60;
+  if (categoria === 'D') return 40;
+  if (categoria === 'E') return 20;
+  return 0;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Infraestrutura Turística  (0-100)
 //    Peso: Hotéis 25% | Leitos 25% | Agências 20% | Uber 15% | IDH 15%
@@ -45,6 +59,52 @@ export function calcularInfraestruturaTuristica(cidade: CidadeDataset): number {
 }
 
 // ---------------------------------------------------------------------------
+// 2. Oferta Hoteleira Observada (0-100)
+//    Aproxima o indicador do dashboard: Leitos 65% | Hoteis 35%.
+// ---------------------------------------------------------------------------
+export function calcularOfertaHoteleiraObservada(cidade: CidadeDataset): number {
+  const leitos = Math.min(cidade.leitos ?? 0, MAX_LEITOS) / MAX_LEITOS;
+  const hoteis = Math.min(cidade.hoteis ?? 0, MAX_HOTEIS) / MAX_HOTEIS;
+
+  return Math.round((leitos * 0.65 + hoteis * 0.35) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// 3. Potencial Turistico (0-100)
+//    Versao mobile do indicador do dashboard:
+//    IDHM 35% | conveniencia urbana 25% | diversidade local 15% | categoria MTur 25%.
+//    Como o app nao carrega todas as colunas economicas do dashboard, usamos
+//    proxies ja disponiveis no cidades.json sem criar nova fonte de dados.
+// ---------------------------------------------------------------------------
+export function calcularPotencialTuristico(cidade: CidadeDataset): number {
+  const idhm = clamp((cidade.idhm ?? 0) * 100);
+  const convenienciaUrbana = clamp(idhm * 0.6 + (cidade.uber ? 40 : 0));
+  const diversidadeLocal = clamp((cidade.categorias?.length ?? 0) * 25);
+  const categoria = categoriaTuristicaScore(cidade.categoriaTur);
+
+  return Math.round(
+    clamp(
+      idhm * 0.35 +
+        convenienciaUrbana * 0.25 +
+        diversidadeLocal * 0.15 +
+        categoria * 0.25,
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 4. Conversao Turistica (0-100)
+//    Estrutura observavel ja convertida em oferta turistica:
+//    Oferta hoteleira observada 45% | infraestrutura turistica 55%.
+// ---------------------------------------------------------------------------
+export function calcularConversaoTuristica(cidade: CidadeDataset): number {
+  const oferta = calcularOfertaHoteleiraObservada(cidade);
+  const infraestrutura = calcularInfraestruturaTuristica(cidade);
+
+  return Math.round(clamp(oferta * 0.45 + infraestrutura * 0.55));
+}
+
+// ---------------------------------------------------------------------------
 // 2. Pressão Turística  (Baixa / Média / Alta)
 //    Ratio: leitos por mil habitantes.
 //    > 15 → Alta   |   5-15 → Média   |   < 5 → Baixa
@@ -62,24 +122,19 @@ export function classificarPressaoTuristica(cidade: CidadeDataset): PressaoTuris
 }
 
 // ---------------------------------------------------------------------------
-// 3. Potencial Joia Escondida  (0-100)
-//    Cidades com boa infraestrutura mas baixa pressão turística.
-//    Base: IDH 35% + Infraestrutura 45% + constante 20%
-//    Fator de ajuste: Alta pressão penaliza (×0.70), Média (×0.85), Baixa (×1.0)
+// 5. Potencial Nao Convertido (0-100)
+//    Segue a narrativa do dashboard: diferenca positiva entre potencial turistico
+//    estimado e conversao turistica observavel.
 // ---------------------------------------------------------------------------
-export function calcularPotencialJoiaEscondida(cidade: CidadeDataset): number {
-  const infra   = calcularInfraestruturaTuristica(cidade);          // 0-100
-  const pressao = classificarPressaoTuristica(cidade);
-  const idh     = (Math.min(Math.max(cidade.idhm ?? 0.5, 0), 1)) * 100; // 0-100
+export function calcularPotencialNaoConvertido(cidade: CidadeDataset): number {
+  const potencial = calcularPotencialTuristico(cidade);
+  const conversao = calcularConversaoTuristica(cidade);
 
-  const fator =
-    pressao === 'Baixa'  ? 1.0 :
-    pressao === 'Média'  ? 0.85 :
-    /* Alta */             0.70;
-
-  const raw = idh * 0.35 + infra * 0.45 + 20;
-  return Math.min(Math.round(raw * fator), 100);
+  return Math.round(clamp(potencial - conversao));
 }
+
+// Alias legado para nao quebrar imports antigos durante a transicao de nome.
+export const calcularPotencialJoiaEscondida = calcularPotencialNaoConvertido;
 
 // ---------------------------------------------------------------------------
 // Helpers de formatação (para uso direto na UI)
