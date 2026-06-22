@@ -5,7 +5,7 @@ import SplashLogoScreen from '../components/ui/SplashLogoScreen';
 import { isFirebaseConfigured } from '../services/firebase';
 import { useAuth } from '../context/AuthContext';
 
-const SPLASH_MS = 3000;
+const SPLASH_MS = 1200;
 
 export default function SplashScreen() {
   const router = useRouter();

@@ -5,12 +5,14 @@ import { BorderWidth, Font, Radius, Size, Spacing } from '../../constants/Tokens
 type FloatingToastProps = {
   message: string;
   opacity: Animated.Value;
+  type?: 'error' | 'success';
 };
 
-export default function FloatingToast({ message, opacity }: FloatingToastProps) {
+export default function FloatingToast({ message, opacity, type = 'error' }: FloatingToastProps) {
+  const color = type === 'success' ? '#22C55E' : '#FF4D4D';
   return (
-    <Animated.View pointerEvents="none" style={[styles.toast, { opacity }]}>
-      <Text style={styles.text}>{message}</Text>
+    <Animated.View pointerEvents="none" style={[styles.toast, { opacity, borderColor: color }]}>
+      <Text style={[styles.text, { color }]}>{message}</Text>
     </Animated.View>
   );
 }
