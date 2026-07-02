@@ -28,6 +28,7 @@ export default function RootLayout() {
           <Stack.Screen name="criar-roteiro" options={{ presentation: 'modal' }} />
           <Stack.Screen name="roteiro-detalhes" />
           <Stack.Screen name="detalhes-cidade" />
+                    <Stack.Screen name="cidades-recomendadas" />
           <Stack.Screen name="city-details" />
           <Stack.Screen name="perfil/meu-perfil" />
           <Stack.Screen name="perfil/editar-perfil" />

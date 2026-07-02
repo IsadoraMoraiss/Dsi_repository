@@ -101,7 +101,7 @@ export default function HomeScreenContent({
 }: HomeScreenContentProps) {
   const insets = useSafeAreaInsets();
   const r = useResponsive();
-
+  const router = useRouter();
   const buscaAtiva = resultadoBusca !== null || resultadoRoteiros !== null || carregandoBusca;
   const totalResultadosBusca = (resultadoBusca?.length ?? 0) + (resultadoRoteiros?.length ?? 0);
 
@@ -180,7 +180,13 @@ export default function HomeScreenContent({
           title="Cidades recomendadas"
           data={recomendadas}
           emptyText="Nenhuma cidade nesta categoria."
-        />
+          actionLabel="Ver todas"
+          onPressAction={() =>
+            router.push({
+              pathname: '/cidades-recomendadas' as never,
+              params: { categoria: categoriaSelecionada },
+            })
+          }
 
         <HomeSection
           title="Últimas visualizações"
