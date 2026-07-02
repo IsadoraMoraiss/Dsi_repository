@@ -6,6 +6,7 @@ import type {
   MacrorregiaoId,
   PreferenciasViagem,
 } from '../constants/preferencias';
+
 import type { CidadeDataset } from '../types/cidadeDataset';
 import {
   calcularInfraestruturaTuristica,
