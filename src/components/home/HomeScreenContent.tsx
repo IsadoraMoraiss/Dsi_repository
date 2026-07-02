@@ -175,6 +175,22 @@ export default function HomeScreenContent({
             </TouchableOpacity>
           ))}
         </ScrollView>
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={[styles.rankingButton, { marginHorizontal: r.scaleX(16), marginBottom: r.scaleY(20) }]}
+          onPress={() => router.push('/ranking-cidades' as never)}
+        >
+          <View style={styles.rankingIcon}>
+            <MaterialIcons name="leaderboard" size={22} color={Colors.primary} />
+          </View>
+          <View style={styles.rankingBody}>
+            <Text style={[styles.rankingTitle, { fontSize: r.font(15) }]}>Ranking de cidades</Text>
+            <Text style={[styles.rankingSubtitle, { fontSize: r.font(12) }]} numberOfLines={1}>
+              Compare por preferencias, infraestrutura, hospedagem, IDH e populacao
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={Colors.textGray} />
+        </TouchableOpacity>
 
         <HomeSection
           title="Cidades recomendadas"
@@ -273,4 +289,34 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
   },
+  rankingButton: {
+    minHeight: 76,
+    backgroundColor: Colors.inputBackground,
+    borderRadius: Radius.md,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...Shadow.subtle,
+  },
+  rankingIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(121,116,231,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankingBody: {
+    flex: 1,
+  },
+  rankingTitle: {
+    color: Colors.textDark,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  rankingSubtitle: {
+    color: Colors.textGray,
+  },
 });
+
