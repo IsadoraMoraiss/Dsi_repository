@@ -40,7 +40,6 @@ import {
 import { useResponsive } from '../utils/responsive';
 
 type RankingCriterion = 'preferencias' | 'joias' | 'potencial' | 'estrutura' | 'hospedagem' | 'idhm';
-type IntentFilter = 'litoral' | 'serra' | 'natureza';
 type InfraFilter = 'alta' | 'media' | 'basica';
 
 type CriterionConfig = {
@@ -59,11 +58,7 @@ const CRITERIA: CriterionConfig[] = [
 ];
 
 
-const INTENT_FILTERS: { id: IntentFilter; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-  { id: 'litoral', label: 'Litoral', icon: 'beach-access' },
-  { id: 'serra', label: 'Serra', icon: 'terrain' },
-  { id: 'natureza', label: 'Natureza', icon: 'park' },
-];
+
 
 const INFRA_FILTERS: { id: InfraFilter; label: string }[] = [
   { id: 'alta', label: 'Infra alta' },
@@ -172,13 +167,6 @@ function matchesSearch(cidade: CidadeDataset, termo: string) {
   return haystack.includes(termo);
 }
 
-function matchesIntentFilter(cidade: CidadeDataset, filtro: IntentFilter) {
-  const tags = gerarTagsCidade(cidade).map(normalizeText);
-  const regiaoTur = normalizeText(cidade.regiaoTur);
-  if (filtro === 'litoral') return tags.includes('litoral') || regiaoTur.includes('litoral') || regiaoTur.includes('praia');
-  if (filtro === 'serra') return tags.includes('serra') || (cidade.altitude ?? 0) > 800 || regiaoTur.includes('serra');
-  return tags.includes('natureza') || cidade.categorias?.includes('natureza') || regiaoTur.includes('chapada') || regiaoTur.includes('pantanal');
-}
 
 function getInfraFilter(categoriaTur: string | null | undefined): InfraFilter | null {
   const categoria = categoriaTur?.toUpperCase();
@@ -214,7 +202,6 @@ function applyFilters(
   busca: string,
   regioes: MacrorregiaoId[],
   categorias: CategoriaDestinoId[],
-  intents: IntentFilter[],
   infra: InfraFilter[],
   comHotel: boolean,
   comUber: boolean,
@@ -225,7 +212,6 @@ function applyFilters(
     if (!matchesSearch(cidade, termo)) return false;
     if (regioes.length > 0 && !regioes.includes(cidade.regiao as MacrorregiaoId)) return false;
     if (categorias.length > 0 && !categorias.some((cat) => cidade.categorias?.includes(cat))) return false;
-    if (intents.length > 0 && !intents.some((intent) => matchesIntentFilter(cidade, intent))) return false;
     if (infra.length > 0) {
       const infraCidade = getInfraFilter(cidade.categoriaTur);
       if (!infraCidade || !infra.includes(infraCidade)) return false;
@@ -289,12 +275,10 @@ function FilterChip({
   label,
   selected,
   onPress,
-  icon,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
-  icon?: keyof typeof MaterialIcons.glyphMap;
 }) {
   const r = useResponsive();
 
@@ -308,9 +292,6 @@ function FilterChip({
         { paddingHorizontal: r.scaleX(12), paddingVertical: r.scaleY(8) },
       ]}
     >
-      {icon ? (
-        <MaterialIcons name={icon} size={16} color={selected ? Colors.textWhite : Colors.primary} />
-      ) : null}
       <Text
         style={[
           styles.filterChipText,
@@ -335,7 +316,6 @@ export default function RankingCidadesScreen() {
   const [busca, setBusca] = useState('');
   const [regioes, setRegioes] = useState<MacrorregiaoId[]>([]);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<CategoriaDestinoId[]>([]);
-  const [intents, setIntents] = useState<IntentFilter[]>([]);
   const [infra, setInfra] = useState<InfraFilter[]>([]);
   const [comHotel, setComHotel] = useState(false);
   const [comUber, setComUber] = useState(false);
@@ -347,12 +327,11 @@ export default function RankingCidadesScreen() {
         busca,
         regioes,
         categoriasSelecionadas,
-        intents,
         infra,
         comHotel,
         comUber,
       ),
-    [busca, regioes, categoriasSelecionadas, intents, infra, comHotel, comUber],
+    [busca, regioes, categoriasSelecionadas, infra, comHotel, comUber],
   );
   const cidadesRankeadas = useMemo(
     () => sortByCriterion(cidadesFiltradas, criterio, preferencias).slice(0, MAX_RANKING_RESULTS),
@@ -363,7 +342,6 @@ export default function RankingCidadesScreen() {
   const totalFiltros =
     regioes.length +
     categoriasSelecionadas.length +
-    intents.length +
     infra.length +
     Number(comHotel) +
     Number(comUber);
@@ -372,7 +350,6 @@ export default function RankingCidadesScreen() {
     setBusca('');
     setRegioes([]);
     setCategoriasSelecionadas([]);
-    setIntents([]);
     setInfra([]);
     setComHotel(false);
     setComUber(false);
@@ -496,15 +473,6 @@ export default function RankingCidadesScreen() {
                   onPress={() => setCategoriasSelecionadas((current) => toggleValue(current, categoria.id))}
                 />
               ))}
-              {INTENT_FILTERS.map((item) => (
-                <FilterChip
-                  key={item.id}
-                  label={item.label}
-                  icon={item.icon}
-                  selected={intents.includes(item.id)}
-                  onPress={() => setIntents((current) => toggleValue(current, item.id))}
-                />
-              ))}
               {INFRA_FILTERS.map((item) => (
                 <FilterChip
                   key={item.id}
@@ -515,13 +483,11 @@ export default function RankingCidadesScreen() {
               ))}
               <FilterChip
                 label="Com hotel"
-                icon="hotel"
                 selected={comHotel}
                 onPress={() => setComHotel((value) => !value)}
               />
               <FilterChip
                 label="Com Uber"
-                icon="local-taxi"
                 selected={comUber}
                 onPress={() => setComUber((value) => !value)}
               />
