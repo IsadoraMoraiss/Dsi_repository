@@ -6,6 +6,11 @@ import type {
   MacrorregiaoId,
   PreferenciasViagem,
 } from '../constants/preferencias';
+import type { CidadeDataset } from '../types/cidadeDataset';
+import {
+  calcularInfraestruturaTuristica,
+  calcularPotencialTuristico,
+} from './indicadoresCidade';
 
 export type UserPreferences = Partial<PreferenciasViagem> & {
   clima?: string[];
@@ -15,6 +20,10 @@ export type UserPreferences = Partial<PreferenciasViagem> & {
 
 const CIDADE_REGIAO_MAP = new Map<string, MacrorregiaoId>(
   getAllCidadesDataset().map((cidade) => [cidade.nome.toLowerCase(), cidade.regiao as MacrorregiaoId]),
+);
+
+const CIDADE_DATASET_MAP = new Map<string, CidadeDataset>(
+  getAllCidadesDataset().map((cidade) => [cidade.id, cidade]),
 );
 
 const categoriaRoteiroKeywords: Record<CategoriaDestinoId, string[]> = {
@@ -59,6 +68,61 @@ function normalizeText(text: string | undefined | null) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function categoriaTurScore(categoriaTur: string | null | undefined) {
+  const categoria = categoriaTur?.toUpperCase();
+  if (categoria === 'A') return 30;
+  if (categoria === 'B') return 25;
+  if (categoria === 'C') return 18;
+  if (categoria === 'D') return 10;
+  if (categoria === 'E') return 5;
+  return 0;
+}
+
+function stableTiebreaker(seed: string) {
+  return seed.split('').reduce((hash, char) => {
+    return (hash * 31 + char.charCodeAt(0)) % 1000003;
+  }, 7);
+}
+
+export function getCityDiscoveryScore(city: Cidade): number {
+  const dataset = CIDADE_DATASET_MAP.get(city.id);
+  if (!dataset) {
+    return city.avaliacao * 10 + city.estilos.length * 4 + getCidadeCategorias(city).length * 5;
+  }
+
+  const hoteisScore = Math.min(dataset.hoteis ?? 0, 80) * 0.35;
+  const leitosScore = Math.min(dataset.leitos ?? 0, 2500) / 100;
+  const populacaoScore = Math.min(Math.sqrt(dataset.populacaoEstimada ?? 0) / 12, 30);
+
+  return (
+    calcularPotencialTuristico(dataset) * 1.2 +
+    calcularInfraestruturaTuristica(dataset) * 0.9 +
+    categoriaTurScore(dataset.categoriaTur) +
+    hoteisScore +
+    leitosScore +
+    populacaoScore +
+    (dataset.capital ? 12 : 0) +
+    (dataset.uber ? 8 : 0) +
+    (dataset.categorias?.length ?? 0) * 4
+  );
+}
+
+function sortByDiscoveryScore(cities: Cidade[]) {
+  return [...cities]
+    .map((city, index) => ({
+      city,
+      score: getCityDiscoveryScore(city),
+      tiebreaker: stableTiebreaker(city.id),
+      index,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.tiebreaker !== b.tiebreaker) return a.tiebreaker - b.tiebreaker;
+      return a.index - b.index;
+    })
+    .map(({ city }) => city);
 }
 
 function normalizeCityName(nome: string) {
@@ -144,13 +208,15 @@ function hasCityPreferenceSignals(preferencias?: UserPreferences) {
 
 export function sortCitiesByPreferenceRelevance(cities: Cidade[], preferencias?: UserPreferences) {
   if (!hasCityPreferenceSignals(preferencias)) {
-    return cities;
+    return sortByDiscoveryScore(cities);
   }
 
-  return [...cities]
+  return [...sortByDiscoveryScore(cities)]
     .map((city, index) => ({ city, score: scoreCityByPreferences(city, preferencias), index }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      if (b.discoveryScore !== a.discoveryScore) return b.discoveryScore - a.discoveryScore;
+      if (a.tiebreaker !== b.tiebreaker) return a.tiebreaker - b.tiebreaker;
       return a.index - b.index;
     })
     .map(({ city }) => city);
@@ -158,7 +224,7 @@ export function sortCitiesByPreferenceRelevance(cities: Cidade[], preferencias?:
 
 export function rankCitiesByPreferences(cities: Cidade[], preferencias?: UserPreferences) {
   if (!hasCityPreferenceSignals(preferencias)) {
-    return cities;
+    return sortByDiscoveryScore(cities);
   }
 
   const filtradas = cities.filter((city) => cityMatchesPreferencias(city, preferencias ?? {}));
